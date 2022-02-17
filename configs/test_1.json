@@ -1,0 +1,53 @@
+{
+   "config_name":"example",
+   "max_teams":10,
+   "max_team_size":4,
+   "game_length":120,
+   "questions":[
+      {
+         "question":"This is question #1",
+         "answer":"answer",
+         "hint":"hint",
+         "point_gain":10,
+         "hint_cost":5,
+         "wrong_loss":1,
+         "case_sensitive":false
+      },
+      {
+         "question":"This is question #2",
+         "answer":"answer",
+         "hint":"hint",
+         "point_gain":10,
+         "hint_cost":5,
+         "wrong_loss":1,
+         "case_sensitive":false
+      },
+      {
+         "question":"This is question #3",
+         "answer":"answer",
+         "hint":"hint",
+         "point_gain":10,
+         "hint_cost":5,
+         "wrong_loss":1,
+         "case_sensitive":false
+      },
+      {
+         "question":"This is question #4",
+         "answer":"answer",
+         "hint":"hint",
+         "point_gain":10,
+         "hint_cost":5,
+         "wrong_loss":1,
+         "case_sensitive":false
+      },
+      {
+         "question":"This is question #5",
+         "answer":"answer",
+         "hint":"hint",
+         "point_gain":10,
+         "hint_cost":5,
+         "wrong_loss":1,
+         "case_sensitive":false
+      }
+   ]
+}
