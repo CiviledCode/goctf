@@ -1,11 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/civiledcode/goctf/ctf"
+	"github.com/civiledcode/goctf/ctf/config"
 	"github.com/civiledcode/goctf/server"
 )
 
 func main() {
-	/*
 	ctf.Random = rand.New(rand.NewSource(time.Now().Unix()))
 	conf := config.Config{
 		ConfigID: "example",
@@ -37,60 +42,17 @@ func main() {
 		CaseSensitive: false,
 	}
 
-	content, err := json.Marshal(conf)
+	// I can do whatever I want in here
 
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(content), "\n\x1b[34mConfig Loaded!\x1b[0m\n")	
+	fmt.Println()
+	//fmt.Println(string(content), "\n\x1b[34mConfig Loaded!\x1b[0m\n")	
 
 	room := ctf.NewRoom(conf)
 
-	fmt.Println("New room created\n")
-
-	team := room.CreateTeam("Clones")
-	
-	fmt.Printf("New team '%v' created with UUID '%v'\n\n", team.Name, team.ID)
-
-	me := room.CreateUser("Civiled")
-	err = me.JoinTeam(team)
-
-	fmt.Printf("Created your account with UUID '%v'\n\n", me.UUID)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	for i := 0; i < 25; i++ {
-		user := room.CreateUser(fmt.Sprintf("Clone %v", i))
-
-		fmt.Printf("Aliase: %v Token: %v UserID: %v\n", user.Aliase, user.Token, user.UUID)
-		err = user.JoinTeam(team)
-		
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-	}
-
-	fmt.Println()
-	for questionID, question := range room.Questions {
-		fmt.Printf("Attempting question with ID '%v'\n", questionID)
-		isRight, err := room.AnswerQuestion(me.UUID, questionID, "21")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		if isRight {
-			fmt.Printf("Question '%v' got right with answer '21'!\n", question.Question)
-		}
-	}
-
-	fmt.Printf("\n\n\x1b[32mFinished! \x1b[0mTeam '%v' with data %v", team.Name, team.Data())
-	*/
+	fmt.Printf("New room created with code %v\n", room.Code)
 	server.Start("", 8000)
-
+	
 	for {
-
-	}	
+		
+	}
 }

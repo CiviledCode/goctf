@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style media="screen">
+			body {
+				background: red;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Join!</h1>
+		{{if .HideInvalidLogin}}
+    			<div id="invalid_login_dialogue" hidden>
+					<p>{{.ErrorMessage}}</p>
+    {{else}}
+    			<div id="invalid_login_dialogue">
+		{{end}}
+
+		</div>
+
+		<form class="" action="/join" method="post">
+			<input type="text" required="true" placeholder="Aliase" name="aliase">
+			<input type="text" required="true" placeholder="Room Code" name="room_code">
+			<input type="submit">
+		</form>
+		<script>
+			console.log("Hello World!");
+		</script>
+	</body>
+</html>

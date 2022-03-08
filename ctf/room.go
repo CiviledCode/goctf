@@ -4,6 +4,9 @@ import (
 	"github.com/civiledcode/goctf/ctf/config"
 )
 
+
+var Rooms map[string]*Room
+
 // Room represents a CTF game or instance.
 // This instance is not thread safe
 type Room struct {
@@ -30,6 +33,10 @@ type Room struct {
 	started bool
 }
 
+func init() {
+	Rooms = make(map[string]*Room)
+}
+
 // NewRoom creates a new room with a random code using the config passed through.
 func NewRoom(con config.Config) *Room {
 	r := &Room{
@@ -52,6 +59,17 @@ func NewRoom(con config.Config) *Room {
 			}
 		}
 	}
+
+	for {
+		code := randomKey(6, false)
+
+		if Rooms[code] == nil {
+			r.Code = code
+			break
+		}
+	}
+
+	Rooms[r.Code] = r
 
 	return r
 }
