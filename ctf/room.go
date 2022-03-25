@@ -43,7 +43,7 @@ func init() {
 // NewRoom creates a new room with a random code using the config passed through.
 func NewRoom(con config.Config) *Room {
 	r := &Room{
-		Code: randomKey(6, false), 
+		Code: randomKey(6, true), 
 		Teams: make(map[string]*Team),
 		Config: con,
 		Questions: make(map[string]config.Question),
@@ -64,7 +64,7 @@ func NewRoom(con config.Config) *Room {
 	}
 
 	for {
-		code := randomKey(6, false)
+		code := randomKey(6, true)
 
 		if Rooms[code] == nil {
 			r.Code = code

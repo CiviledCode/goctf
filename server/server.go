@@ -97,18 +97,21 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 
 		if !ok || sanitized == "" {
 			data.ErrorMessage = "Invalid aliase"
+            w.WriteHeader(401)
 		}
 
 		roomcode, ok := r.Form["room_code"]
 
 		if !ok {
 			data.ErrorMessage = "Invalid room code"
+            w.WriteHeader(401)
 		}
 
 		if data.ErrorMessage == "" {
 			room := ctf.Rooms[roomcode[0]]
 			if room == nil {
 				data.ErrorMessage = "Invalid room code"
+                w.WriteHeader(401)
 				joinTemplate.Execute(w, data)
 				return
 			}
