@@ -1,31 +1,267 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<style media="screen">
-			body {
-				background: red;
-			}
-		</style>
-	</head>
+<html lang="en" dir="ltr">
 
-	<body>
-		<h1>Join!</h1>
-		{{if .HideInvalidLogin}}
-    			<div id="invalid_login_dialogue" hidden>
-					<p>{{.ErrorMessage}}</p>
-    {{else}}
-    			<div id="invalid_login_dialogue">
-		{{end}}
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500&family=Lato:wght@700&display=swap" rel="stylesheet">
+  <style media="screen">
+    :root {
+      --main-bg: #121212;
+      --secondary-bg: #181818;
+      --label-clr: #cccccc;
+      --main-accent: #04dac6;
+    }
 
-		</div>
+    body {
+      background: var(--main-bg);
+    }
 
-		<form class="" action="/join" method="post">
-			<input type="text" required="true" placeholder="Aliase" name="aliase">
-			<input type="text" required="true" placeholder="Room Code" name="room_code">
-			<input type="submit">
-		</form>
-		<script>
-			console.log("Hello World!");
-		</script>
-	</body>
+    .form_card {
+      background: var(--secondary-bg);
+      box-shadow: 0px 1px 6px -2px #060606;
+      border-radius: 14px;
+      align-content: center;
+      display: flex;
+      padding: 0;
+      visibility: hidden;
+      margin: 0;
+      align-items: center;
+      flex-direction: column;
+      height: 60vh;
+      width: 40vw;
+      font-family: 'Josefin Sans', sans-serif;
+      font-family: 'Lato', sans-serif;
+    }
+
+    .form_card[active="true"] {
+      width: 0;
+      height: 0;
+      animation: 500ms ease-in-out 550ms forwards fade_in_card;
+    }
+
+    .form_card[active="false"] {
+      animation: 500ms ease-in-out both fade_out_card;
+    }
+
+    .input_holder>.form_input {
+      border-radius: 10px;
+      outline: none;
+      height: 100%;
+      width: 100%;
+      border-style: solid;
+      border-color: var(--main-accent);
+      background: none;
+      color: var(--label-clr);
+      overflow: hidden;
+    }
+
+    .input_holder>label {
+      transform: translate(10px, 135%);
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      color: var(--label-clr);
+    }
+
+    .input_holder {
+      height: 35px;
+      margin-top: 5%;
+      width: 60%;
+    }
+
+    #form_holder {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #room_icon {
+      margin-top: 15%;
+      fill: var(--main-accent);
+    }
+
+    #aliase_icon {
+      margin-top: 15%;
+      fill: var(--main-accent);
+    }
+
+    #form_stage {
+      height: 25vh;
+      width: 50%;
+      min-width: 200px;
+      min-height: 50px;
+      background: none;
+    }
+
+    .button_holder {
+      display: flex;
+      flex-direction: row;
+      margin-top: 15%;
+      width: 80%;
+      min-width: 50px;
+      justify-content: center;
+    }
+
+    .button_holder>* {
+      margin: 6px;
+      width: 40%;
+      height: 40px;
+      border-radius: 15px;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      color: var(--main-bg);
+      background: var(--main-accent);
+      font-family: 'Josefin Sans', sans-serif;
+      font-family: 'Lato', sans-serif;
+      font-size: 1.15rem;
+    }
+
+    @keyframes fade_in_card {
+      0% {
+        transform: translateX(100%);
+        visibility: hidden;
+        opacity: 0;
+        height: 60vh;
+        width: 40vw;
+      }
+
+      100% {
+        opacity: 1;
+        visibility: visible;
+        height: 60vh;
+        width: 40vw;
+        min-width: 250px;
+        min-height: 325px;
+      }
+    }
+
+    @keyframes fade_out_card {
+      0% {
+        visibility: visible;
+        opacity: 1;
+      }
+
+      99% {
+        visibility: hidden !important;
+        opacity: 0;
+        height: 60vh;
+        width: 40vw;
+      }
+
+      100% {
+        transform: translateX(-100%);
+        width: 0;
+        height: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="form_holder">
+    <div id="form_stage">
+
+    </div>
+    <form action="/join" method="post">
+      <div class="form_card" active="true">
+        <svg width="25%" height="25%" id="room_icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="m2.893 15.656 8.076 5.384v-4.808l-4.474-2.986zm-.831-1.928 2.585-1.728-2.585-1.728zm10.969 7.312 8.076-5.384-3.6-2.41-4.476 2.986zm-1.031-6.602 3.643-2.438-3.643-2.438-3.643 2.438zm-5.505-3.68 4.474-2.99v-4.808l-8.076 5.384zm12.858 1.242 2.585 1.728v-3.456zm-1.848-1.246 3.6-2.41-8.074-5.384v4.808zm6.495-2.41v7.312.03c0 .346-.18.651-.452.825l-.004.002-10.969 7.313c-.162.109-.361.174-.576.174s-.414-.065-.58-.176l.004.002-10.969-7.312c-.276-.176-.456-.481-.456-.827 0-.011 0-.021.001-.032v.002-7.312c0-.009 0-.02 0-.031 0-.346.18-.651.452-.825l.004-.002 10.969-7.312c.162-.109.361-.174.576-.174s.414.065.58.176l-.004-.002 10.969 7.312c.276.176.456.481.456.827 0 .011 0 .021-.001.032z" />
+        </svg>
+        <div class="input_holder">
+          <label for="room_code">Room Code</label>
+          <input class="form_input" type="number" name="room_code" required>
+        </div>
+        <div class="button_holder">
+          <button class="next_button" type="button" name="">Next</button>
+        </div>
+      </div>
+      <div class="form_card" active="false">
+        <svg width="25%" height="25%" id="aliase_icon" viewBox="-1 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="m14.145 16.629c-.04-.527-.064-1.142-.064-1.762 0-.255.004-.51.012-.763l-.001.037c.731-.76 1.219-1.758 1.333-2.868l.002-.021c.339-.028.874-.358 1.03-1.666.016-.074.025-.16.025-.248 0-.396-.188-.747-.48-.97l-.003-.002c.552-1.66 1.698-6.796-2.121-7.326-.393-.69-1.399-1.04-2.707-1.04-5.233.096-5.864 3.951-4.72 8.366-.294.226-.482.577-.482.972 0 .088.009.174.027.257l-.001-.008c.16 1.306.691 1.638 1.03 1.666.127 1.134.628 2.133 1.374 2.888.007.214.011.466.011.718 0 .623-.023 1.24-.069 1.851l.005-.081c-1.038 2.784-8.026 2.002-8.346 7.371h22.458c-.322-5.369-7.278-4.587-8.314-7.371z" />
+        </svg>
+        <div class="input_holder">
+          <label for="aliase">Aliase</label>
+          <input class="form_input" type="text" name="aliase" required>
+        </div>
+        <div class="button_holder">
+          <button class="prev_button" type="button" name="">Back</button>
+          <input type="submit">
+        </div>
+      </div>
+    </form>
+  </div>
+  <script type="text/javascript">
+    var currentIndex = 0;
+
+    function onClick(amount) {
+      // TODO: Validate that the input is filled in.
+      updateCard(currentIndex, currentIndex + amount);
+    }
+
+    function updateCard(last, current) {
+      const allCards = document.querySelectorAll(".form_card");
+
+      if (current >= allCards.length || current < 0) {
+        return;
+      }
+
+      if (last < current) {
+        const allInputHolders = allCards[last].querySelectorAll(":scope > .input_holder");
+        for (let i = 0; i < allInputHolders.length; i++) {
+          const allInput = allInputHolders[i].querySelectorAll(":scope > .form_input");
+          for (let x = 0; x < allInput.length; x++) {
+            if (allInput[x].value == "") {
+              return;
+            }
+          }
+        }
+      }
+
+      allCards[last].setAttribute("active", false);
+      allCards[current].setAttribute("active", true);
+      currentIndex = current;
+    }
+
+    const nextList = document.querySelectorAll(".next_button");
+    for (let i = 0; i < nextList.length; i++) {
+      nextList[i].addEventListener("click", function() {
+        onClick(1)
+      });
+    }
+    const prevList = document.querySelectorAll(".prev_button");
+    for (let i = 0; i < prevList.length; i++) {
+      prevList[i].addEventListener("click", function() {
+        onClick(-1)
+      });
+    }
+
+    const inputList = document.querySelectorAll(".input_holder");
+    for (let i = 0; i < inputList.length; i++) {
+      const labl = inputList[i].querySelector(":scope > label");
+      const inp = inputList[i].querySelector(":scope > .form_input");
+
+      if (inp.value != "") {
+        labl.style.visibility = 'hidden';
+      }
+
+      inp.addEventListener('focus', (event) => {
+        labl.style.opacity = '0';
+      });
+
+      inp.addEventListener('blur', (event) => {
+        if (event.target.value == "") {
+          labl.style.opacity = "1";
+        }
+      });
+    }
+  </script>
+</body>
 </html>
