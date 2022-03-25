@@ -68,6 +68,8 @@ type joinData struct {
 	ErrorMessage string
 }
 
+
+// Handles all requests on the /join path.
 func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	var data joinData
 
@@ -85,6 +87,7 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+    // The client is attempting to join some sort of room.
 	if r.Method == "POST" {
 		r.ParseForm()
 
@@ -92,6 +95,7 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 			HideInvalidLogin: false,
 		}
 
+        // Retrieve the aliase from the form, sanitize it, and check to see if it's valid.
 		aliase, ok := r.Form["aliase"]
 		sanitized := sanitize(aliase[0])
 
@@ -100,6 +104,7 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
             w.WriteHeader(401)
 		}
 
+        // Retrieve the room code from the form and validate it.
 		roomcode, ok := r.Form["room_code"]
 
 		if !ok {
@@ -107,6 +112,8 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
             w.WriteHeader(401)
 		}
 
+    
+        // If there was no error, create the user.
 		if data.ErrorMessage == "" {
 			room := ctf.Rooms[roomcode[0]]
 			if room == nil {
@@ -116,8 +123,11 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+        
+            // Create the user using the sanitized aliase.
 			user := room.CreateUser(sanitized)
 
+            // Store the token and room_code as cookies.
 			cookie = &http.Cookie {
 				Name: "token",
 				Value: user.Token,
@@ -130,16 +140,20 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			http.SetCookie(w, cookie)
 			
+            // Redirect to the play path because we are successfully authenticated.
 			http.Redirect(w, r, "/play", 303)
 		} else {
+            // TODO; Create the dialogue within the html.
 			log.Printf("Failed attempt to join room '%v' with aliase '%v'. Error: '%v'\n", roomcode[0], sanitized, data.ErrorMessage)
 		}
 		
+    // The client is attempting to retrieve the webpage to join.
 	} else if r.Method == "GET" {
 		data = joinData {
 			HideInvalidLogin: true,
-			ErrorMessage: "nil",
+			ErrorMessage: "",
 		}	
+    // An unknown method has occured.
 	} else {
 		w.WriteHeader(405)
 	}
@@ -151,6 +165,33 @@ func TeamHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PlayHandler(w http.ResponseWriter, r *http.Request) {	
+	// Check if the user already has the proper room code and token.
+    var room *ctf.Room
+    var user *ctf.User
+
+    cookie, err := r.Cookie("room_code")
+	if err == nil {
+		if room = ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
+			cookie, err = r.Cookie("token")
+			if err == nil {
+				if user = room.UserByPrivate(cookie.Value); cookie == nil || user == nil {
+                    http.Redirect(w, r, "/join", 303)
+				}
+			} else {
+                http.Redirect(w, r, "/join", 303)
+            }
+		} else {
+            http.Redirect(w, r, "/join", 303)
+        }
+	} else {
+        http.Redirect(w, r, "/join", 303)
+    }
+
+    if user.Team == nil {
+        http.Redirect(w, r, "/team", 303)
+    }
+
+    // TODO: Serve webpage capable of fetching questions from /questions
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
