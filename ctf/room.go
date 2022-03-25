@@ -1,6 +1,8 @@
 package ctf
 
 import (
+	"fmt"
+
 	"github.com/civiledcode/goctf/ctf/config"
 )
 
@@ -35,6 +37,7 @@ type Room struct {
 
 func init() {
 	Rooms = make(map[string]*Room)
+	fmt.Println("Initiated rooms")
 }
 
 // NewRoom creates a new room with a random code using the config passed through.
@@ -118,7 +121,8 @@ func (r *Room) RemoveUser(userid string, removePoints bool) error {
 	return nil
 }
 
-// UserByPrivate retrieves a user using their private token. 
+// UserByPrivate retrieves a user using their private token.
+// if no user is found, nil is returned.
 func (r *Room) UserByPrivate(privateToken string) *User {
 	userid := r.tokens[privateToken]
 

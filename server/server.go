@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"os"
 
@@ -29,7 +30,7 @@ func Start(ip string, port int) {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			fmt.Printf("Server Connection Error: %v\n", err)
+			log.Printf("Server Connection Error: %v\n", err)
 		}
 	}()
 
@@ -49,22 +50,17 @@ func Stop() {
 	err := server.Close()
 	
 	if err != nil {
-		fmt.Printf("Server Close Error: %v\n", err)
+		log.Printf("Server Close Error: %v\n", err)
 	}
 
 	Started = false
 }
 
 func ScoresHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello World!")
-	for _, cookie := range r.Cookies() {
-		fmt.Println(cookie)
-	}
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
-	cook := &http.Cookie{Name: "sample", Value: "sample", HttpOnly: false}
-	http.SetCookie(w, cook)
+
 }
 
 type joinData struct {
@@ -74,39 +70,45 @@ type joinData struct {
 
 func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	var data joinData
+
+	// Check if the user already has the proper room code and token.
+	cookie, err := r.Cookie("room_code")
+	if err == nil {
+		if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
+			cookie, err = r.Cookie("token")
+			if err == nil {
+				if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil{
+					// Redirect to the main play handler as the user is already authenticated properly in a room.
+					http.Redirect(w, r, "/play", 303)
+				}
+			}
+		}
+	}
+
 	if r.Method == "POST" {
 		r.ParseForm()
-		fmt.Println("Attempted join")
+
 		data = joinData {
 			HideInvalidLogin: false,
-		}
-
-		// Check if the user already has the proper room code and token.
-		cookie, err := r.Cookie("room_code")
-		if err != nil {
-			cookie, err = r.Cookie("token")
-			if err != nil {
-				http.Redirect(w, r, "/play", 303)
-			}
 		}
 
 		aliase, ok := r.Form["aliase"]
 		sanitized := sanitize(aliase[0])
 
 		if !ok || sanitized == "" {
-			data.ErrorMessage = "Invalid aliase."
+			data.ErrorMessage = "Invalid aliase"
 		}
 
 		roomcode, ok := r.Form["room_code"]
 
 		if !ok {
-			data.ErrorMessage = "Empty room code."
+			data.ErrorMessage = "Invalid room code"
 		}
 
 		if data.ErrorMessage == "" {
 			room := ctf.Rooms[roomcode[0]]
 			if room == nil {
-				data.ErrorMessage = "Invalid room code."
+				data.ErrorMessage = "Invalid room code"
 				joinTemplate.Execute(w, data)
 				return
 			}
@@ -124,9 +126,10 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 				Value: roomcode[0],
 			}
 			http.SetCookie(w, cookie)
-			fmt.Println("Logged in!")
+			
+			http.Redirect(w, r, "/play", 303)
 		} else {
-			fmt.Printf("Failed attempt with room %v and user %v and error %v\n%v", roomcode, sanitized, data.ErrorMessage, ctf.Rooms)
+			log.Printf("Failed attempt to join room '%v' with aliase '%v'. Error: '%v'\n", roomcode[0], sanitized, data.ErrorMessage)
 		}
 		
 	} else if r.Method == "GET" {
@@ -142,23 +145,21 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TeamHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Do whatever") 
 }
 
-func PlayHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.Address)	
+func PlayHandler(w http.ResponseWriter, r *http.Request) {	
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
-
 }
 
 func CreateTeamHandler(w http.ResponseWriter, r *http.Request)  {
-
 }
 
 
 func sanitize(input string) string {
+	// TODO: Properly sanitize input.
+	// TODO: Add a profanity filter config option
 	if input == "" {
 		return ""
 	}
