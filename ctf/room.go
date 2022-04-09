@@ -6,7 +6,6 @@ import (
 	"github.com/civiledcode/goctf/ctf/config"
 )
 
-
 var Rooms map[string]*Room
 
 // Room represents a CTF game or instance.
@@ -28,12 +27,30 @@ type Room struct {
 	// Users maps userid to the user object.
 	Users map[string]*User
 
+	// AnswerCallback is a callback executed before we attempt to check if the answer is correct.
+	// If this returns true, no flag checks will be done and it will automatically mark it as corrrect.
+	// If this returns false, the flag will be checked to see if it's correct.
+	// The first argument is the user who answered, then the question that's being answered, followed by the answer submitted.
+	AnswerCallback Callback
+
+	// CompleteCallback is called after the question has been marked as correct and the points have been given to the team.
+	// The return result means nothing.
+	// The first argument is the user who answered, then the question that's being answered, followed by the answer submitted.
+	CompleteCallback Callback
+
+	// WrongCallback is called after the answer of a question has been deemed as wrong and the points have been deducted (if any).
+	// The return result means nothing.
+	// The first argument is the user who answered, then the question that's being answered, followed by the answer submitted.
+	WrongCallback Callback
+
 	// tokens maps a users private token to their userid.
 	tokens map[string]string
 
 	// started depicts if the room has started already. If this is true, no longer accept new members.
 	started bool
 }
+
+type Callback func(*User, config.Question, string)bool
 
 func init() {
 	Rooms = make(map[string]*Room)
@@ -225,11 +242,28 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 		return true, ErrQuestionAlreadyAnswered
 	}
 
+	if r.AnswerCallback != nil {
+		if r.AnswerCallback(user, question, answer) {
+			user.Team.Complete(userid, questionid)
+			if r.CompleteCallback != nil {
+				r.CompleteCallback(user, question, answer)
+			}
+			return true, nil
+		}
+	}
+
 	if question.IsRight(answer) {
 		user.Team.Complete(userid, questionid)
+		if r.CompleteCallback != nil {
+			r.CompleteCallback(user, question, answer)
+		}
 		return true, nil
 	} else if question.WrongCost >= 1 {
 		user.Team.Deduct(question.WrongCost)
+	}
+
+	if r.WrongCallback != nil {
+		r.WrongCallback(user, question, answer)
 	}
 
 	return false, nil
