@@ -14,6 +14,7 @@ var server *http.Server
 var Started bool
 
 var joinTemplate *template.Template 
+var teamTemplate *template.Template
 
 func Start(ip string, port int) {
 	mux := http.NewServeMux()
@@ -44,6 +45,7 @@ func init() {
 	}
 
 	joinTemplate = template.Must(template.ParseFiles(wd + "/style/join.html"))
+	teamTemplate = template.Must(template.ParseFiles(wd + "/style/team.html"))
 }
 
 func Stop() {
@@ -57,19 +59,33 @@ func Stop() {
 }
 
 func ScoresHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: Serve scores as a json map mapping each team uuid to a struct
+	// This struct should contain the teams name, team members, and another map mapping the start time offset (in seconds) to the amount of points scored at that exact time.
+
+	// This should only be called by the fetch API
 }
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
-
+	// TODO: Accept all POST requests and attempt to solve a question as a user.
+	// This should contain the ID of the question and the answer being submitted.
 }
 
 type joinData struct {
+	// HideInvalidLogin depicts if the login invalid dialogue should be hidden or not.
 	HideInvalidLogin bool
+
+	// ErrorMessage is the message that we are showing within the error dialogue.
 	ErrorMessage string
 }
 
 
-// Handles all requests on the /join path.
+// Join allows users to create users within a room given a room id and aliase.
+// 
+// Methods:
+// 	- GET: Serves the Join page template.
+// 	
+//	- POST: Attempts to join the room using the room code  with the name provided. This will create the room_id and token cookies on the. 
+//	  Params: room_code, aliase
 func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	var data joinData
 
@@ -91,9 +107,7 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseForm()
 
-		data = joinData {
-			HideInvalidLogin: false,
-		}
+		data = joinData {}
 
         // Retrieve the aliase from the form, sanitize it, and check to see if it's valid.
 		aliase, ok := r.Form["aliase"]
@@ -143,12 +157,12 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
             // Redirect to the play path because we are successfully authenticated.
 			http.Redirect(w, r, "/play", 303)
 		} else {
-            // TODO; Create the dialogue within the html.
 			log.Printf("Failed attempt to join room '%v' with aliase '%v'. Error: '%v'\n", roomcode[0], sanitized, data.ErrorMessage)
 		}
 		
     // The client is attempting to retrieve the webpage to join.
 	} else if r.Method == "GET" {
+		// TODO: Create the error message dialogue inside the html.
 		data = joinData {
 			HideInvalidLogin: true,
 			ErrorMessage: "",
@@ -162,6 +176,23 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TeamHandler(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("room_code")
+	if err == nil {
+		if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
+			cookie, err = r.Cookie("token")
+			if err == nil {
+				if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil{
+					// Serve the page because the user is authenticated.
+					teamTemplate.Execute(w, nil)
+					return
+				}
+			}
+		}
+	}
+
+	// The user isn't properly authenticated, so we need to redirect them to the join page.
+	http.Redirect(w, r, "/join", 303)
+	
 }
 
 func PlayHandler(w http.ResponseWriter, r *http.Request) {	
@@ -195,6 +226,7 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
+	
 }
 
 func CreateTeamHandler(w http.ResponseWriter, r *http.Request)  {
