@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500&family=Lato:wght@700&display=swap" rel="stylesheet">
+  <title></title>
+  <style media="screen">
+    :root {
+      --main-bg: #0B0417;
+      --secondary-bg: #110C1A;
+      --ui-bg: #1C1825;
+      --content-clr: #cccccc;
+      --main-accent: #8F31ED;
+    }
+
+    body {
+      background: var(--main-bg);
+      overflow-x: hidden;
+      display: flex;
+      align-content: center;
+      width: 100vw;
+      height: 100vh;
+      flex-direction: column;
+      align-items:
+    }
+
+    #card_holder {
+      width: 100%;
+      justify-content: center;
+      display: flex;
+    }
+
+    #padder {
+      height: 20vh;
+      width: 100vw;
+    }
+
+    .card {
+      font-family: 'Josefin Sans', sans-serif;
+      font-family: 'Lato', sans-serif;
+      background: var(--secondary-bg);
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      margin: 20px;
+      min-width: 300px;
+      width: 27%;
+      min-height: 450px;
+      height: 40%;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+      border-radius: 10px;
+      animation: 75ms ease-in forwards deflate;
+    }
+
+    .card>h1 {
+      color: white;
+      margin-bottom: 30%;
+      margin-top: 20%;
+      color: var(--content-clr);
+    }
+
+    .card_form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card:hover {
+      animation: 100ms ease-in forwards inflate;
+    }
+
+    .card_input {
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      outline: none;
+      border-style: none;
+      box-sizing: border-box;
+      background: var(--ui-bg);
+      color: var(--content-clr);
+      overflow: hidden;
+    }
+
+    .card_input:active {
+      background-color: var(--ui-bg);
+    }
+
+    .card_input:focus {
+      background-color: var(--ui-bg);
+    }
+
+    label.focused {
+      animation: 100ms forwards move_label;
+    }
+
+    input.focused {
+      animation: 100ms forwards glow_input;
+    }
+
+    .input_holder>label {
+      transform: translate(10px, 110%);
+      display: inline-block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      color: var(--content-clr);
+    }
+
+    .card_button {
+      margin-top: 20px;
+      width: 60%;
+      height: 40px;
+      border-radius: 15px;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      color: var(--main-bg);
+      background: var(--content-clr);
+      font-family: 'Josefin Sans', sans-serif;
+      font-family: 'Lato', sans-serif;
+      font-size: 20px;
+    }
+
+    .card_button:hover {
+      transform: scale(1.1, 1.1);
+      background: var(--main-accent)
+    }
+
+    @keyframes inflate {
+      100% {
+        transform: scale(1.05, 1.05);
+      }
+    }
+
+    @keyframes deflate {
+      100% {
+        transform: scale(.95, .95);
+      }
+    }
+
+    @keyframes move_label {
+      100% {
+        transform: translateY(30%);
+      }
+    }
+
+    @keyframes glow_input {
+      100% {
+        border-style: solid;
+        border-color: var(--main-accent);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="padder"></div>
+  <div id="card_holder">
+    <div class="card">
+      <h1>Join a Team</h1>
+      <form class="card_form input_holder" action="/jointeam" method="post">
+        <label for="team_code">Team Code</label>
+        <input class="card_input form_input" type="text" name="team_code">
+        <input class="card_button" type="submit" value="Join">
+      </form>
+    </div>
+    <div class="card">
+      <h1>Create a Team</h1>
+      <form class="card_form input_holder" action="/createteam" method="post">
+        <label for="team_code">Team Name</label>
+        <input class="card_input form_input" type="text" name="team_aliase">
+        <input class="card_button" type="submit" value="Create">
+      </form>
+    </div>
+  </div>
+  <script type="text/javascript">
+    const inputList = document.querySelectorAll(".input_holder");
+    for (let i = 0; i < inputList.length; i++) {
+      const labl = inputList[i].querySelector(":scope > label");
+      const inp = inputList[i].querySelector(":scope > .form_input");
+
+      if (inp.value != "") {
+        labl.classList.add('focused');
+        inp.classList.add('focused');
+      }
+
+      inp.addEventListener('focus', (event) => {
+        labl.classList.add('focused');
+        inp.classList.add('focused');
+      });
+
+      inp.addEventListener('blur', (event) => {
+        if (event.target.value == "") {
+          labl.classList.remove('focused');
+          inp.classList.remove('focused');
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
