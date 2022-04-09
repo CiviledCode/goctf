@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/civiledcode/goctf/ctf"
 	"github.com/civiledcode/goctf/ctf/config"
@@ -11,7 +9,6 @@ import (
 )
 
 func main() {
-	ctf.Random = rand.New(rand.NewSource(time.Now().Unix()))
 	conf := config.Config{
 		ConfigID: "example",
 		MaxTeams: 10,
