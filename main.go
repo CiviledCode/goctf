@@ -42,14 +42,14 @@ func main() {
 	// I can do whatever I want in here
 
 	fmt.Println()
-	//fmt.Println(string(content), "\n\x1b[34mConfig Loaded!\x1b[0m\n")	
+	//fmt.Println(string(content), "\n\x1b[34mConfig Loaded!\x1b[0m\n")
 
 	room := ctf.NewRoom(conf)
 
 	fmt.Printf("New room created with code %v\n", room.Code)
 	server.Start("", 8000)
-	
+
 	for {
-		
+
 	}
 }

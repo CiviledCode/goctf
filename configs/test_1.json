@@ -2,6 +2,7 @@
    "config_name":"example",
    "max_teams":10,
    "max_team_size":4,
+   "force_unique_teams":true,
    "game_length":120,
    "questions":[
       {

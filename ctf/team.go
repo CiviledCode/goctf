@@ -14,6 +14,8 @@ var ErrAlreadyInTeam error = errors.New("You are already in a team.")
 
 var ErrTeamNotFound error = errors.New("Team not found.")
 
+var ErrTeamNameUsed error = errors.New("Team name already in use.")
+
 var ErrCannotAfford error = errors.New("Your team has insufficient points to make this purchase.")
 
 var ErrHintAlreadyOwned error = errors.New("Your team already owns this hint.")

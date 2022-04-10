@@ -2,10 +2,12 @@ package ctf
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/civiledcode/goctf/ctf/config"
 )
 
+// Rooms maps room codes to their respective room structs. This allows more than one game to be going on at once.
 var Rooms map[string]*Room
 
 // Room represents a CTF game or instance.
@@ -50,7 +52,7 @@ type Room struct {
 	started bool
 }
 
-type Callback func(*User, config.Question, string)bool
+type Callback func(*User, config.Question, string) bool
 
 func init() {
 	Rooms = make(map[string]*Room)
@@ -60,13 +62,13 @@ func init() {
 // NewRoom creates a new room with a random code using the config passed through.
 func NewRoom(con config.Config) *Room {
 	r := &Room{
-		Code: randomKey(6, true), 
-		Teams: make(map[string]*Team),
-		Config: con,
+		Code:      randomKey(6, true),
+		Teams:     make(map[string]*Team),
+		Config:    con,
 		Questions: make(map[string]config.Question),
-		started: false,
-		tokens: make(map[string]string),
-		Users: make(map[string]*User),
+		started:   false,
+		tokens:    make(map[string]string),
+		Users:     make(map[string]*User),
 	}
 
 	for _, question := range con.Questions {
@@ -95,7 +97,7 @@ func NewRoom(con config.Config) *Room {
 }
 
 func (r *Room) Start() {
-	// TODO: Create some sort of timer that increments the amount of time since competition start.	
+	// TODO: Create some sort of timer that increments the amount of time since competition start.
 }
 
 func (r *Room) Pause() {
@@ -107,9 +109,8 @@ func (r *Room) Started() {
 }
 
 func (r *Room) Stop() {
-	
-}
 
+}
 
 // RemoveUser removes a user using their userid.
 // This will delete their team entry, user entry, and token.
@@ -119,7 +120,7 @@ func (r *Room) RemoveUser(userid string, removePoints bool) error {
 	user := r.Users[userid]
 
 	if user == nil {
-	 	return ErrUserNotFound	
+		return ErrUserNotFound
 	}
 
 	if user.Team == nil {
@@ -160,16 +161,24 @@ func (r *Room) CreateUser(aliase string) *User {
 }
 
 // CreateTeam creates a new empty team with the name provided and adds it to the current room.
-func (r *Room) CreateTeam(name string) *Team {
+func (r *Room) CreateTeam(name string) (*Team, error) {
+	if r.Config.ForceUniqueTeams {
+		for _, team := range r.Teams {
+			if strings.EqualFold(team.Name, name) {
+				return nil, ErrTeamNameUsed
+			}
+		}
+	}
+
 	t := &Team{
-		Name: name, 
-		UserScores: make(map[string]int64),
-		Room: r,
+		Name:               name,
+		UserScores:         make(map[string]int64),
+		Room:               r,
 		CompletedQuestions: make(map[string]string),
-		modified: true,
-	}	
-	
-	outside:
+		modified:           true,
+	}
+
+outside:
 	for {
 		key := randomKey(6, true)
 
@@ -183,7 +192,7 @@ func (r *Room) CreateTeam(name string) *Team {
 		break
 	}
 
-	for { 
+	for {
 		key := randomKey(10, false)
 
 		if r.Teams[key] == nil {
@@ -194,7 +203,7 @@ func (r *Room) CreateTeam(name string) *Team {
 
 	r.Teams[t.ID] = t
 
-	return t
+	return t, nil
 }
 
 // DeleteTeam removes a team and all its members from the room using its ID.
@@ -205,25 +214,26 @@ func (r *Room) DeleteTeam(id string) {
 		return
 	}
 
-	for userid, _ := range t.UserScores {
+	for userid := range t.UserScores {
 		user := r.Users[userid]
 		delete(r.tokens, user.Token)
 		delete(r.Users, userid)
-		
+
 	}
 
 	delete(r.Teams, id)
 }
 
-// AnswerQuestion attempts to answer a question on behalf of the user provided. 
+// AnswerQuestion attempts to answer a question on behalf of the user provided.
 // The proper point allocations, deductions, answer, and security checks are done on this.
 // This returns a bool representing if you have the question answered now and an error.
+// This executes the Answer, Complete, and Wrong callbacks respectively.
 // If the user isn't found, ErrUserNotFound is returned.
 // If the question isn't found, ErrQuestionNotFound is returned.
 // If the question was already answered by the users team, true is returned alongside ErrQuestionAlreadyAnswered.
 func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 	user := r.Users[userid]
-	
+
 	if user == nil {
 		return false, ErrUserNotFound
 	}
@@ -235,7 +245,7 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 	question := r.Questions[questionid]
 
 	if question == (config.Question{}) {
-		return false, ErrQuestionNotFound 
+		return false, ErrQuestionNotFound
 	}
 
 	if done, _ := user.Team.IsComplete(questionid); done {
@@ -268,4 +278,3 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 
 	return false, nil
 }
-
