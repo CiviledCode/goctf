@@ -237,6 +237,7 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Serve webpage capable of fetching questions from /questions
+
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {

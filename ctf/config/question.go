@@ -6,6 +6,12 @@ import (
 
 // Question represents a CTF question that can be marshaled from JSON.
 type Question struct {
+	// Name represents the display name of the question. This has no programmatic significance.
+	Name string `json:"name"`
+
+	// Category represents the category of the question and how it will be grouped. This is case sensitive.
+	Category string `json:"category"`
+
 	// Question represents the question that is being asked.
 	Question string `json:"question"`
 
