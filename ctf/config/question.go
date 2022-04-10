@@ -12,6 +12,10 @@ type Question struct {
 	// Category represents the category of the question and how it will be grouped. This is case sensitive.
 	Category string `json:"category"`
 
+	// ID represents the hardcoded version of a questions ID. This should only be set if there may be some programmatic reference to it.
+	// This ID isn't private, so it shouldn't be named anything to give it away.
+	ID string `json:"id"`
+
 	// Question represents the question that is being asked.
 	Question string `json:"question"`
 
@@ -33,6 +37,9 @@ type Question struct {
 
 	// CaseSensitive depicts if the answer cares about capitalization.
 	CaseSensitive bool `json:"case_sensitive"`
+
+	// RequiredSolved depicts the questions that are needed to be solved before this question can be viewed or answered.
+	RequiredSolved []string `json:"required_solved"`
 }
 
 // IsRight checks an answer using the proper capitalization configuration and returns the answer.

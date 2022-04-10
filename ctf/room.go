@@ -72,10 +72,16 @@ func NewRoom(con config.Config) *Room {
 	}
 
 	for _, question := range con.Questions {
+		// If an ID is hardcoded, we should allow it.
+		if question.ID != "" {
+			r.Questions[question.ID] = question
+			continue
+		}
+
 		for {
 			key := randomKey(4, false)
 
-			if r.Questions[key] == (config.Question{}) {
+			if r.Questions[key].Question == "" {
 				r.Questions[key] = question
 				break
 			}
@@ -244,12 +250,20 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 
 	question := r.Questions[questionid]
 
-	if question == (config.Question{}) {
+	if question.Question == "" {
 		return false, ErrQuestionNotFound
 	}
 
 	if done, _ := user.Team.IsComplete(questionid); done {
 		return true, ErrQuestionAlreadyAnswered
+	}
+
+	if len(question.RequiredSolved) > 0 {
+		for _, required := range question.RequiredSolved {
+			if complete, _ := user.Team.IsComplete(required); !complete {
+				return false, ErrQuestionRequiredUnsolved
+			}
+		}
 	}
 
 	if r.AnswerCallback != nil {

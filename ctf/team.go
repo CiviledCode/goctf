@@ -3,12 +3,9 @@ package ctf
 import (
 	"encoding/json"
 	"errors"
-
-	"github.com/civiledcode/goctf/ctf/config"
 )
 
-
-var ErrTeamTooBig error = errors.New("Team size exceeds configured max size.") 
+var ErrTeamTooBig error = errors.New("Team size exceeds configured max size.")
 
 var ErrAlreadyInTeam error = errors.New("You are already in a team.")
 
@@ -24,6 +21,8 @@ var ErrQuestionNotFound error = errors.New("Question not found with that id.")
 
 var ErrQuestionAlreadyAnswered error = errors.New("Your team has already answered this question.")
 
+var ErrQuestionRequiredUnsolved error = errors.New("This question requires other questions to be answered before you can solve it.")
+
 // Team represents a group of users that are scored and displayed amongst the leaderboard.
 // Correct answer points are awarded to teams, but individual contributions are mapped too.
 type Team struct {
@@ -32,7 +31,7 @@ type Team struct {
 
 	// JoinCode is a private unique key used for joining the team.
 	JoinCode string
-	
+
 	// ID is a public key used for identifying a team.
 	ID string
 
@@ -48,7 +47,7 @@ type Team struct {
 	// OwnedHints holds the question IDs for the hints owned.
 	OwnedHints map[string]string
 
-	// userScores holds all the current scores for the 
+	// userScores holds all the current scores for the
 	UserScores map[string]int64
 
 	// deductions is the amount of points deducted from their score.
@@ -88,8 +87,6 @@ func (t *Team) Deduct(amount int64) {
 	t.deductions += amount
 }
 
-
-
 // IsComplete depicts if the team has a question completed or not.
 // If completed, the users ID  who completed it is also returned.
 func (t *Team) IsComplete(questionID string) (bool, string) {
@@ -104,7 +101,7 @@ func (t *Team) IsComplete(questionID string) (bool, string) {
 func (t *Team) Complete(userid, questionid string) error {
 	question := t.Room.Questions[questionid]
 
-	if question == (config.Question{}) {
+	if question.Question == "" {
 		return ErrQuestionNotFound
 	}
 
@@ -130,12 +127,12 @@ func (t *Team) BuyHint(userid, questionid string) error {
 	owned, _ := t.OwnsHint(questionid)
 
 	if owned {
-		return ErrHintAlreadyOwned	
+		return ErrHintAlreadyOwned
 	}
 
 	question := t.Room.Questions[questionid]
 
-	if question != (config.Question{}) {
+	if question.Question != "" {
 		if t.score >= question.HintCost {
 			t.OwnedHints[questionid] = userid
 			t.deductions += question.HintCost
@@ -147,7 +144,6 @@ func (t *Team) BuyHint(userid, questionid string) error {
 
 	return nil
 }
-
 
 // OwnsHint depicts if a hint has been purchased, and if so by who.
 func (t *Team) OwnsHint(questionid string) (bool, string) {
@@ -171,18 +167,18 @@ func (t *Team) Data() string {
 	}
 
 	teamData := map[string]interface{}{
-		"name": t.Name,
-		"points": t.score,
+		"name":       t.Name,
+		"points":     t.score,
 		"deductions": t.deductions,
-		"completed": t.CompletedQuestions,
-		"users": t.UserScores,
+		"completed":  t.CompletedQuestions,
+		"users":      t.UserScores,
 	}
 
 	hints := make(map[string]string)
 	for hintQuestionID, _ := range t.OwnedHints {
 		question := t.Room.Questions[hintQuestionID]
 
-		if question != (config.Question{}) {
+		if question.Question != "" {
 			hints[hintQuestionID] = question.Hint
 		}
 	}
