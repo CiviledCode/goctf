@@ -216,19 +216,24 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				if user = room.UserByPrivate(cookie.Value); cookie == nil || user == nil {
 					http.Redirect(w, r, "/join", 303)
+					return
+				}
+
+				if user.Team == nil {
+					http.Redirect(w, r, "/team", 303)
+					return
 				}
 			} else {
 				http.Redirect(w, r, "/join", 303)
+				return
 			}
 		} else {
 			http.Redirect(w, r, "/join", 303)
+			return
 		}
 	} else {
 		http.Redirect(w, r, "/join", 303)
-	}
-
-	if user.Team == nil {
-		http.Redirect(w, r, "/team", 303)
+		return
 	}
 
 	// TODO: Serve webpage capable of fetching questions from /questions
