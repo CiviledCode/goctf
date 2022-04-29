@@ -22,15 +22,11 @@ type Question struct {
 	// Answer represents the valid question answer.
 	Answer string `json:"answer"`
 
-	// Hint represents a hint that can be purchased for HintCost amount of points
-	// from the team balance.
-	Hint string `json:"hint"`
+	// Hints maps numerical hint IDs to hint objects.
+	Hints map[int]Hint `json:"hints"`
 
 	// Points represents the amount of points gained from completing a question correctly.
 	Points int64 `json:"point_gain"`
-
-	// HintCost represents the amount of points deducted from your teams points for taking this hint.
-	HintCost int64 `json:"hint_cost"`
 
 	// WrongCost represents the amount of points deducted from your teams points for getting the answer wrong.
 	WrongCost int64 `json:"wrong_loss"`
@@ -42,6 +38,12 @@ type Question struct {
 	RequiredSolved []string `json:"required_solved"`
 }
 
+type AnsweredQuestion struct {
+	Solver string `json:"solver"`
+
+	SolveTime int64 `json:"solve_time"`
+}
+
 // IsRight checks an answer using the proper capitalization configuration and returns the answer.
 func (q Question) IsRight(answer string) bool {
 	if !q.CaseSensitive {
@@ -50,3 +52,5 @@ func (q Question) IsRight(answer string) bool {
 
 	return strings.Compare(answer, q.Answer) == 0
 }
+
+

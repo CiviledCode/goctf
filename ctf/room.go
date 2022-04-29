@@ -1,8 +1,9 @@
 package ctf
 
 import (
-	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/civiledcode/goctf/ctf/config"
 )
@@ -16,7 +17,7 @@ type Room struct {
 	// Code represents the unique ID used to join the room.
 	Code string
 
-	// Teams represents a list of teams currently within the room.
+	// Teams maps all the current team ids to their team items.
 	Teams map[string]*Team
 
 	// Config represents the configuration used to control the isntance.
@@ -50,13 +51,17 @@ type Room struct {
 
 	// started depicts if the room has started already. If this is true, no longer accept new members.
 	started bool
+
+	// elapsedTime is the amount of time in seconds that has gone on in total outside of the current stretch that is going on currently.
+	// startTime is the unix time that this stretch was started.
+	elapsedTime, startTime int64
 }
 
 type Callback func(*User, config.Question, string) bool
 
 func init() {
 	Rooms = make(map[string]*Room)
-	fmt.Println("Initiated rooms")
+	log.Println("Instantiated Rooms")
 }
 
 // NewRoom creates a new room with a random code using the config passed through.
@@ -102,20 +107,26 @@ func NewRoom(con config.Config) *Room {
 	return r
 }
 
+// Start will allow answering, buying hints, and viewing questions. The time will also start being elapsed from this point.
 func (r *Room) Start() {
-	// TODO: Create some sort of timer that increments the amount of time since competition start.
+	r.startTime = time.Now().Unix()
+	r.started = true
 }
 
-func (r *Room) Pause() {
-	// TODO: Pause the timer, and deny all incoming attempts at solving or viewing the questions.
-}
-
-func (r *Room) Started() {
-
-}
-
+// Stop will stop the time and disable all answering, buying hints, and viewing questions until started again.
 func (r *Room) Stop() {
+	r.elapsedTime += time.Now().Unix() - r.startTime
+	r.started = false
+}
 
+// Started depicts if the room is started or not.
+func (r *Room) Started() bool {
+	return r.started
+}
+
+// CurrentTime calculates the amount of time that has passed that the game room has been started.
+func (r *Room) CurrentTime() int64 {
+	return (time.Now().Unix() - r.startTime) + r.elapsedTime
 }
 
 // RemoveUser removes a user using their userid.
@@ -180,12 +191,13 @@ func (r *Room) CreateTeam(name string) (*Team, error) {
 		Name:               name,
 		UserScores:         make(map[string]int64),
 		Room:               r,
-		CompletedQuestions: make(map[string]string),
+		CompletedQuestions: make(map[string]config.AnsweredQuestion),
 		modified:           true,
 	}
 
 outside:
 	for {
+		// Generate a random join code and verify that it's unique.
 		key := randomKey(6, true)
 
 		for _, team := range r.Teams {
@@ -199,6 +211,7 @@ outside:
 	}
 
 	for {
+		// Generate a random team ID and verify that it's unique.
 		key := randomKey(10, false)
 
 		if r.Teams[key] == nil {
@@ -228,6 +241,17 @@ func (r *Room) DeleteTeam(id string) {
 	}
 
 	delete(r.Teams, id)
+}
+
+// TeamByCode retrieves a team based on its joincode.
+func (r *Room) TeamByCode(teamCode string) *Team {
+	for _, team := range r.Teams { 
+		if team.JoinCode == teamCode {
+			return team
+		}
+	}
+
+	return nil
 }
 
 // AnswerQuestion attempts to answer a question on behalf of the user provided.

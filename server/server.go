@@ -10,6 +10,8 @@ import (
 	"github.com/civiledcode/goctf/ctf"
 )
 
+// TODO: Properly log errors with correct severity for better vulnerability tracing.
+
 var server *http.Server
 var Started bool
 
@@ -24,6 +26,7 @@ func Start(ip string, port int) {
 	mux.HandleFunc("/join", JoinHandler)
 	mux.HandleFunc("/team", TeamHandler)
 	mux.HandleFunc("/play", PlayHandler)
+	mux.HandleFunc("/game", GameHandler)
 	mux.HandleFunc("/jointeam", JoinTeamHandler)
 	mux.HandleFunc("/createteam", CreateTeamHandler)
 
@@ -36,6 +39,7 @@ func Start(ip string, port int) {
 	}()
 
 	Started = true
+	log.Printf("Server started on %v:%v\n", ip, port)
 }
 
 func init() {
@@ -176,6 +180,14 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	joinTemplate.Execute(w, data)
 }
 
+
+func GameHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: Upgrade this connection to a websocket connection.
+	// A channel should be mapped with a clients user id to relay updates over socket.
+	// All inbound commands should be dropped.
+
+}
+
 // Team allows players to select between creating and joining a team in one place.
 //
 // Methods:
@@ -223,6 +235,8 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 					http.Redirect(w, r, "/team", 303)
 					return
 				}
+
+				// TODO: Serve play template.
 			} else {
 				http.Redirect(w, r, "/join", 303)
 				return
@@ -235,13 +249,50 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/join", 303)
 		return
 	}
-
-	// TODO: Serve webpage capable of fetching questions from /questions
-
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		cookie, err := r.Cookie("room_code")
+		if err == nil {
+			if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
+				cookie, err = r.Cookie("token")
+				if err == nil {
+					if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil {
+						if user.Team == nil {
+							// The user isn't already inside of a team so they can properly join one.
+							err = r.ParseForm()
+							if err != nil {
+								log.Printf("JoinTeam Handler Error: %v\n", err)
+							}
 
+							teamcode := r.Form["team_code"]
+							if len(teamcode) == 0 {
+								http.Redirect(w, r, "/team", 303)
+								return
+							}
+							
+							team := room.TeamByCode(teamcode[0])
+
+							if team == nil {
+								http.Redirect(w, r, "/team", 303)
+								return
+							}
+
+							err = user.JoinTeam(team)
+							if err != nil {
+								http.Redirect(w, r, "/team", 303)
+								return
+							}
+
+							http.Redirect(w, r, "/play", 303)
+							return
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // CreateTeam creates a new team using the name received and adds the user to this team.
@@ -261,8 +312,9 @@ func CreateTeamHandler(w http.ResponseWriter, r *http.Request) {
 						if user.Team == nil {
 							err = r.ParseForm()
 							if err != nil {
-								panic(err)
+								log.Printf("CreateTeam Handler Error: %v\n", err)
 							}
+
 							teamName := r.Form["team_name"]
 							if len(teamName) == 0 {
 								http.Redirect(w, r, "/team", 303)

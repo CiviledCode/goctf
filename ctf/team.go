@@ -1,8 +1,9 @@
 package ctf
 
 import (
-	"encoding/json"
 	"errors"
+
+	"github.com/civiledcode/goctf/ctf/config"
 )
 
 var ErrTeamTooBig error = errors.New("Team size exceeds configured max size.")
@@ -42,10 +43,9 @@ type Team struct {
 	score int64
 
 	// CompletedQuestions maps the questions UUID to the UUID of the user who completed it.
-	CompletedQuestions map[string]string
-
-	// OwnedHints holds the question IDs for the hints owned.
-	OwnedHints map[string]string
+	CompletedQuestions map[string]config.AnsweredQuestion
+	// OwnedHints maps question ids to an array of all hint ids owned for that question.
+	OwnedHints map[string][]int
 
 	// userScores holds all the current scores for the
 	UserScores map[string]int64
@@ -89,9 +89,9 @@ func (t *Team) Deduct(amount int64) {
 
 // IsComplete depicts if the team has a question completed or not.
 // If completed, the users ID  who completed it is also returned.
-func (t *Team) IsComplete(questionID string) (bool, string) {
-	complete := t.CompletedQuestions[questionID]
-	return complete != "", complete
+func (t *Team) IsComplete(questionID string) (bool, config.AnsweredQuestion) {
+	data, complete := t.CompletedQuestions[questionID]
+	return complete, data
 }
 
 // Complete marks a question complete for the team and maps the user who answered it correctly.
@@ -99,94 +99,116 @@ func (t *Team) IsComplete(questionID string) (bool, string) {
 // If the question cannot be found, ErrQuestionNotFound is returned.
 // If the question has already been answered, ErrQuestionAlreadyAnswered is returned.
 func (t *Team) Complete(userid, questionid string) error {
-	question := t.Room.Questions[questionid]
+	if question, ok := t.Room.Questions[questionid]; ok {
+		if _, ok := t.CompletedQuestions[questionid]; ok {
+			return ErrQuestionAlreadyAnswered
+		}
 
-	if question.Question == "" {
-		return ErrQuestionNotFound
+		t.CompletedQuestions[questionid] = config.AnsweredQuestion{Solver: userid, SolveTime: t.Room.CurrentTime()}
+		t.UserScores[userid] += question.Points
+		t.score += question.Points
+		t.modified = true
+
+		return nil
 	}
-
-	if t.CompletedQuestions[questionid] != "" {
-		return ErrQuestionAlreadyAnswered
-	}
-
-	t.CompletedQuestions[questionid] = userid
-
-	t.UserScores[userid] += question.Points
-
-	t.score += question.Points
-
-	t.modified = true
-
-	return nil
+	
+	return ErrQuestionNotFound
+	
 }
 
 // BuyHint attempts to buy a hint using the teams points.
 // If the team doesn't have enough points, ErrCannotAfford is returned.
 // If the team already owns the hint, ErrHintAlreadyOwned is returned.
-func (t *Team) BuyHint(userid, questionid string) error {
-	owned, _ := t.OwnsHint(questionid)
+func (t *Team) BuyHint(userid, questionid string, hintid int) error {
+	owned, _ := t.OwnsHint(questionid, hintid)
 
 	if owned {
 		return ErrHintAlreadyOwned
 	}
 
-	question := t.Room.Questions[questionid]
-
-	if question.Question != "" {
-		if t.score >= question.HintCost {
-			t.OwnedHints[questionid] = userid
-			t.deductions += question.HintCost
-			t.modified = true
-		} else {
-			return ErrCannotAfford
+	if question, ok := t.Room.Questions[questionid]; ok {
+		if hint, ok := question.Hints[hintid]; ok {
+			if t.score >= hint.Cost {
+				t.OwnedHints[questionid] = append(t.OwnedHints[questionid], hintid)
+				t.deductions += hint.Cost
+				t.modified = true
+			} else {
+				return ErrCannotAfford
+			}
 		}
 	}
 
 	return nil
 }
 
-// OwnsHint depicts if a hint has been purchased, and if so by who.
-func (t *Team) OwnsHint(questionid string) (bool, string) {
-	owner := t.OwnedHints[questionid]
-	return owner != "", owner
-}
-
-// Data parses private team data for the team users.
-// This data is cached until a modification happens.
-//
-// JSON Structure:
-// name string | The name of the team.
-// points int | The amount of points earned (without deductions)
-// users map[string]int | Mapping of all the teams users to their points earned (without deductions)
-// deductions int | The amount of points deducted from the teams final amount.
-// completed map[string]string | Mapping of all completed question IDs to the userID who completed them.
-// hints map[string]string | Mapping of ids of all owned question hints to the hint content.
-func (t *Team) Data() string {
-	if !t.modified {
-		return t.teamData
+// OwnsHint depicts if a team owns a hint given a questionid and an id for the hint.
+// If the team owns this hint, this returns true and the hint is returned.
+func (t *Team) OwnsHint(questionid string, hintid int) (bool, config.Hint) {
+	ownedHints := t.OwnedHints[questionid]
+	if ownedHints == nil {
+		return false, config.Hint{}
 	}
 
-	teamData := map[string]interface{}{
-		"name":       t.Name,
-		"points":     t.score,
-		"deductions": t.deductions,
-		"completed":  t.CompletedQuestions,
-		"users":      t.UserScores,
-	}
-
-	hints := make(map[string]string)
-	for hintQuestionID, _ := range t.OwnedHints {
-		question := t.Room.Questions[hintQuestionID]
-
-		if question.Question != "" {
-			hints[hintQuestionID] = question.Hint
+	for _, id := range ownedHints {
+		if id == hintid {
+			return true, t.Room.Questions[questionid].Hints[hintid]
 		}
 	}
-	teamData["hints"] = hints
 
-	content, _ := json.Marshal(teamData)
-	t.modified = false
-	t.teamData = string(content)
+	return false, config.Hint{}
+}
 
-	return t.teamData
+// QuestionData receives a questionid and attempts to convert it into data 
+func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
+	if question, ok := t.Room.Questions[questionid]; ok {
+		if len(question.RequiredSolved) > 0 {
+			for _, requiredid := range question.RequiredSolved {
+				if _, ok = t.CompletedQuestions[requiredid]; !ok {
+					return nil, ErrQuestionRequiredUnsolved
+				}
+			}
+		}
+
+		questionData := map[string]interface{} {
+			"name": question.Name,
+			"category": question.Category,
+			"id": question.ID,
+			"question": question.Question,
+			"points": question.Points,
+			"wrong_cost": question.WrongCost,
+		}
+
+		hints := make(map[string]interface{})
+
+		if len(question.Hints) > 0 {
+			for hintid, hint := range question.Hints {
+				hintContents := map[string]interface{} {
+					"cost": hint.Cost,
+				}
+
+				// If the item is owned, add the content field on there too.
+				owns, _ := t.OwnsHint(questionid, hintid)
+				hintContents["owned"] = owns
+				if owns {
+					hintContents["content"] = hint.Content
+				}
+
+				hints[string(hintid)] = hintContents
+			}
+		}
+
+		questionData["hints"] = hints
+
+		_, ok = t.CompletedQuestions[questionid]
+
+		questionData["solved"] = ok
+
+		if ok {
+			// TODO: Include solver data inside here.
+		}
+
+		return questionData, nil
+	} else {
+		return nil, ErrQuestionNotFound 
+	}
 }

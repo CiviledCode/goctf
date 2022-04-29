@@ -1,7 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"log"
+	"os"
 
 	"github.com/civiledcode/goctf/ctf"
 	"github.com/civiledcode/goctf/ctf/config"
@@ -9,45 +11,24 @@ import (
 )
 
 func main() {
-	conf := config.Config{
-		ConfigID: "example",
-		MaxTeams: 10,
-		MaxTeamSize: 4,
-		GameLength: 120,
-		Questions: make([]config.Question, 6),
+	// Load the config
+	configData, err := os.ReadFile("./configs/test_1.json")
+	if err != nil {
+		log.Fatalf("Error reading config file: %v\n", err)
+	}
+	var conf config.Config
+
+	err = json.Unmarshal(configData, &conf)
+
+	if err != nil {
+		log.Fatalf("Error parsing config file: %v\n", err)
 	}
 
-	for i := 0; i < 5; i++ {
-		conf.Questions[i] = config.Question {
-			Question: fmt.Sprintf("This is question #%v", i + 1),
-			Answer: "answer",
-			Hint: "hint",
-			Points: 10,
-			HintCost: 5,
-			WrongCost: 1,
-			CaseSensitive: false,
-		}
-	}
-
-	conf.Questions[5] = config.Question {
-		Question: "What's 9+10?",
-		Answer: "21",
-		Hint: "",
-		Points: 15,
-		HintCost: 5,
-		WrongCost: 1,
-		CaseSensitive: false,
-	}
-
-	// I can do whatever I want in here
-
-	fmt.Println()
-	//fmt.Println(string(content), "\n\x1b[34mConfig Loaded!\x1b[0m\n")
-
+	// Create the room
 	room := ctf.NewRoom(conf)
 
-	fmt.Printf("New room created with code %v\n", room.Code)
-	server.Start("", 8000)
+	log.Printf("New room created with code %v\n", room.Code)
+	server.Start("127.0.0.1", 8000)
 
 	for {
 
