@@ -197,6 +197,11 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+				if !room.Started() {
+					w.WriteHeader(403)
+					return
+				}
+
 				c, err := upgrader.Upgrade(w, r, nil)
 				if err != nil {
 					log.Printf("WebSocket Upgrade Error: %v\n", err)
