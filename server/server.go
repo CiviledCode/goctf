@@ -335,7 +335,7 @@ func CreateTeamHandler(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
-								fmt.Printf("Team %v Created by %v", *team, user.Aliase)
+								log.Printf("Team %v Created by %v", *team, user.ID)
 								http.Redirect(w, r, "/play", 303)
 								return
 							}

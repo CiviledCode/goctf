@@ -87,6 +87,7 @@ func NewRoom(con config.Config) *Room {
 			key := randomKey(4, false)
 
 			if r.Questions[key].Question == "" {
+				question.ID = key
 				r.Questions[key] = question
 				break
 			}
@@ -172,8 +173,8 @@ func (r *Room) UserByPrivate(privateToken string) *User {
 // This initiates values in room.Users and room.tokens
 func (r *Room) CreateUser(aliase string) *User {
 	user := newUser(aliase, r)
-	r.Users[user.UUID] = user
-	r.tokens[user.Token] = user.UUID
+	r.Users[user.ID] = user
+	r.tokens[user.Token] = user.ID
 	return user
 }
 
@@ -192,6 +193,7 @@ func (r *Room) CreateTeam(name string) (*Team, error) {
 		UserScores:         make(map[string]int64),
 		Room:               r,
 		CompletedQuestions: make(map[string]config.AnsweredQuestion),
+		OwnedHints: make(map[string][]int),
 		modified:           true,
 	}
 
@@ -212,7 +214,7 @@ outside:
 
 	for {
 		// Generate a random team ID and verify that it's unique.
-		key := randomKey(10, false)
+		key := randomKey(8, false)
 
 		if r.Teams[key] == nil {
 			t.ID = key
@@ -254,6 +256,20 @@ func (r *Room) TeamByCode(teamCode string) *Team {
 	return nil
 }
 
+// BuyHint attempts to buy a hint using a userid and a questionid.
+func (r *Room) BuyHint(userid, questionid string, hintid int) (bool, error) { 
+	if user, ok := r.Users[userid]; ok {
+		if user.Team != nil {
+			err := user.Team.BuyHint(questionid, hintid)
+			return err == nil, err
+		} else {
+			return false, ErrTeamNotFound
+		}
+	}
+
+	return false, ErrUserNotFound
+}
+
 // AnswerQuestion attempts to answer a question on behalf of the user provided.
 // The proper point allocations, deductions, answer, and security checks are done on this.
 // This returns a bool representing if you have the question answered now and an error.
@@ -262,6 +278,9 @@ func (r *Room) TeamByCode(teamCode string) *Team {
 // If the question isn't found, ErrQuestionNotFound is returned.
 // If the question was already answered by the users team, true is returned alongside ErrQuestionAlreadyAnswered.
 func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
+	if !r.Started() {
+		return false, ErrGameNotStarted
+	}
 	user := r.Users[userid]
 
 	if user == nil {

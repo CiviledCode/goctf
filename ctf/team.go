@@ -6,6 +6,7 @@ import (
 	"github.com/civiledcode/goctf/ctf/config"
 )
 
+
 var ErrTeamTooBig error = errors.New("Team size exceeds configured max size.")
 
 var ErrAlreadyInTeam error = errors.New("You are already in a team.")
@@ -13,6 +14,8 @@ var ErrAlreadyInTeam error = errors.New("You are already in a team.")
 var ErrTeamNotFound error = errors.New("Team not found.")
 
 var ErrTeamNameUsed error = errors.New("Team name already in use.")
+
+var ErrGameNotStarted error = errors.New("The game hasn't started yet.")
 
 var ErrCannotAfford error = errors.New("Your team has insufficient points to make this purchase.")
 
@@ -44,6 +47,7 @@ type Team struct {
 
 	// CompletedQuestions maps the questions UUID to the UUID of the user who completed it.
 	CompletedQuestions map[string]config.AnsweredQuestion
+
 	// OwnedHints maps question ids to an array of all hint ids owned for that question.
 	OwnedHints map[string][]int
 
@@ -119,7 +123,7 @@ func (t *Team) Complete(userid, questionid string) error {
 // BuyHint attempts to buy a hint using the teams points.
 // If the team doesn't have enough points, ErrCannotAfford is returned.
 // If the team already owns the hint, ErrHintAlreadyOwned is returned.
-func (t *Team) BuyHint(userid, questionid string, hintid int) error {
+func (t *Team) BuyHint(questionid string, hintid int) error {
 	owned, _ := t.OwnsHint(questionid, hintid)
 
 	if owned {
@@ -174,11 +178,12 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 			"category": question.Category,
 			"id": question.ID,
 			"question": question.Question,
+			"type": "question",
 			"points": question.Points,
 			"wrong_cost": question.WrongCost,
 		}
 
-		hints := make(map[string]interface{})
+		hints := make(map[int]interface{})
 
 		if len(question.Hints) > 0 {
 			for hintid, hint := range question.Hints {
@@ -193,7 +198,7 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 					hintContents["content"] = hint.Content
 				}
 
-				hints[string(hintid)] = hintContents
+				hints[hintid] = hintContents
 			}
 		}
 
@@ -204,7 +209,9 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 		questionData["solved"] = ok
 
 		if ok {
-			// TODO: Include solver data inside here.
+			answered := t.CompletedQuestions[question.ID]
+			questionData["solver"] = answered.Solver
+			questionData["solve_time"] = answered.SolveTime
 		}
 
 		return questionData, nil

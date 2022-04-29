@@ -11,8 +11,8 @@ type User struct {
 	// Aliase is the display name of the user. 
 	Aliase string
 	
-	// UUID is a publicly referencable unique identifier.
-	UUID string
+	// ID is a publicly referencable unique identifier.
+	ID string
 
 	// Token is the private token of the user.
 	Token string
@@ -37,12 +37,12 @@ func newUser(aliase string, room *Room) *User {
 		}
 	}
 
-	// Generate and check if the UUID is unique.
+	// Generate and check if the ID is unique.
 	for { 
-		uuid := randomKey(6, false)
+		id := randomKey(8, false)
 
-		if room.Users[uuid] == nil {
-			u.UUID = uuid
+		if room.Users[id] == nil {
+			u.ID = id
 			break
 		}
 	}
@@ -62,7 +62,7 @@ func (u *User) JoinTeam(team *Team) error {
 		return nil 
 	}
 
-	team.UserScores[u.UUID] = 0
+	team.UserScores[u.ID] = 0
 
 	u.Team = team
 
