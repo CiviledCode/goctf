@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/civiledcode/goctf/ctf"
+	"github.com/gorilla/websocket"
 )
 
 // TODO: Properly log errors with correct severity for better vulnerability tracing.
@@ -17,6 +19,9 @@ var Started bool
 
 var joinTemplate *template.Template
 var teamTemplate *template.Template
+var playTemplate *template.Template
+
+var upgrader = websocket.Upgrader{} // use default options
 
 func Start(ip string, port int) {
 	mux := http.NewServeMux()
@@ -50,6 +55,7 @@ func init() {
 
 	joinTemplate = template.Must(template.ParseFiles(wd + "/style/join.html"))
 	teamTemplate = template.Must(template.ParseFiles(wd + "/style/team.html"))
+	playTemplate = template.Must(template.ParseFiles(wd + "/style/play.html"))
 }
 
 func Stop() {
@@ -180,12 +186,62 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	joinTemplate.Execute(w, data)
 }
 
-
 func GameHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Upgrade this connection to a websocket connection.
-	// A channel should be mapped with a clients user id to relay updates over socket.
-	// All inbound commands should be dropped.
+	if r.Method == "GET" {
+		if token, ok := r.URL.Query()["token"]; ok {
+			if room_code, ok := r.URL.Query()["room"]; ok {
+				room := ctf.Rooms[room_code[0]]
+				user := room.UserByPrivate(token[0])
+				if room == nil || user == nil {
+					w.WriteHeader(401)
+					return
+				}
 
+				c, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					log.Printf("WebSocket Upgrade Error: %v\n", err)
+					return
+				}
+
+				defer c.Close()
+
+				user.Pipe = make(chan []byte)
+				readChan := make(chan bool)
+
+				go func() {
+					for {
+						c.ReadMessage()
+						readChan <- true
+					}
+				}()
+				go func() {
+					time.Sleep(100)
+					allIds := make([]string, len(room.Questions))
+					i := 0
+
+					for questionid, _ := range room.Questions {
+						allIds[i] = questionid
+						i++
+					}
+					fmt.Println(allIds)
+					user.Team.UpdateUser(user.ID, allIds...)
+				}()
+				for {
+					select {
+					case msg := <-user.Pipe:
+						err = c.WriteMessage(1, msg)
+						if err != nil {
+							log.Printf("WebSocket Write Error: %v\n", err)
+							return
+						}
+					case <-readChan:
+						user.Pipe = nil
+						return
+					}
+				}
+			}
+		}
+	}
 }
 
 // Team allows players to select between creating and joining a team in one place.
@@ -216,6 +272,10 @@ func TeamHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type playData struct {
+	GameURL string
+}
+
 func PlayHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the user already has the proper room code and token.
 	var room *ctf.Room
@@ -236,7 +296,8 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				// TODO: Serve play template.
+				data := playData{GameURL: fmt.Sprintf("ws://%v/game?token=%v&room=%v", server.Addr, user.Token, room.Code)}
+				playTemplate.Execute(w, data)
 			} else {
 				http.Redirect(w, r, "/join", 303)
 				return
@@ -271,7 +332,7 @@ func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
 								http.Redirect(w, r, "/team", 303)
 								return
 							}
-							
+
 							team := room.TeamByCode(teamcode[0])
 
 							if team == nil {

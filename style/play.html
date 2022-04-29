@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Play</title>
+</head>
+
+<body>
+  <h1>Play</h1>
+  <script type="text/javascript">
+    var ws;
+    var url = "{{.GameURL}}";
+    window.addEventListener("load", function(evt) {
+      if (ws) {
+        return false;
+      }
+
+      ws = new WebSocket(url);
+      ws.onopen = function(evt) {
+        console.log("Opened Connection")
+      }
+      ws.onclose = function(evt) {
+        console.log("WebSocket Connection Closed");
+        ws = null;
+      }
+      ws.onmessage = function(evt) {
+        let content = JSON.parse(evt.data);
+        updateQuestion(content);
+      }
+      ws.onerror = function(evt) {
+        console.log("ERROR: " + evt.data);
+      }
+      return false;
+    });
+
+    window.addEventListener("beforeunload", function() {
+      ws.send("close");
+      ws.close();
+    });
+
+    function updateQuestion(question_data) {
+      console.log(question_data);
+    }
+  </script>
+</body>
+
+</html>

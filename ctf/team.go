@@ -1,11 +1,12 @@
 package ctf
 
 import (
+	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/civiledcode/goctf/ctf/config"
 )
-
 
 var ErrTeamTooBig error = errors.New("Team size exceeds configured max size.")
 
@@ -112,12 +113,65 @@ func (t *Team) Complete(userid, questionid string) error {
 		t.UserScores[userid] += question.Points
 		t.score += question.Points
 		t.modified = true
-
+		t.UpdateTeam(questionid)
 		return nil
 	}
-	
+
 	return ErrQuestionNotFound
-	
+
+}
+
+func (t *Team) UpdateTeam(questionid string) {
+	data, err := t.QuestionData(questionid)
+	if err != nil {
+		log.Printf("Error Updating Question Data: %v\n", err)
+		return
+	}
+
+	content, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error Encoding Question Data: %v\n", err)
+	}
+
+	for user, _ := range t.UserScores {
+		user := t.Room.Users[user]
+		if user.Pipe == nil {
+			continue
+		}
+
+		user.Pipe <- content	
+	}
+}
+
+func (t *Team) UpdateUser(userid string, questionids ...string) {
+	if _, ok := t.UserScores[userid]; !ok {
+		return
+	}
+
+	user := t.Room.Users[userid]
+	if user == nil {
+		return
+	}
+
+	if user.Pipe == nil {
+		return
+	}
+
+	for _, questionid := range questionids {
+		data, err := t.QuestionData(questionid)
+		if err != nil {
+			continue
+		}
+
+		content, err := json.Marshal(data)
+		if err != nil {
+			log.Printf("Error Encoding Question Data: %v\n", err)
+			continue
+		}
+
+		
+		user.Pipe <- content
+	}
 }
 
 // BuyHint attempts to buy a hint using the teams points.
@@ -136,6 +190,7 @@ func (t *Team) BuyHint(questionid string, hintid int) error {
 				t.OwnedHints[questionid] = append(t.OwnedHints[questionid], hintid)
 				t.deductions += hint.Cost
 				t.modified = true
+				t.UpdateTeam(questionid)
 			} else {
 				return ErrCannotAfford
 			}
@@ -162,7 +217,7 @@ func (t *Team) OwnsHint(questionid string, hintid int) (bool, config.Hint) {
 	return false, config.Hint{}
 }
 
-// QuestionData receives a questionid and attempts to convert it into data 
+// QuestionData receives a questionid and attempts to convert it into data
 func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 	if question, ok := t.Room.Questions[questionid]; ok {
 		if len(question.RequiredSolved) > 0 {
@@ -173,13 +228,13 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 			}
 		}
 
-		questionData := map[string]interface{} {
-			"name": question.Name,
-			"category": question.Category,
-			"id": question.ID,
-			"question": question.Question,
-			"type": "question",
-			"points": question.Points,
+		questionData := map[string]interface{}{
+			"name":       question.Name,
+			"category":   question.Category,
+			"id":         question.ID,
+			"question":   question.Question,
+			"type":       "question",
+			"points":     question.Points,
 			"wrong_cost": question.WrongCost,
 		}
 
@@ -187,7 +242,7 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 
 		if len(question.Hints) > 0 {
 			for hintid, hint := range question.Hints {
-				hintContents := map[string]interface{} {
+				hintContents := map[string]interface{}{
 					"cost": hint.Cost,
 				}
 
@@ -216,6 +271,6 @@ func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 
 		return questionData, nil
 	} else {
-		return nil, ErrQuestionNotFound 
+		return nil, ErrQuestionNotFound
 	}
 }

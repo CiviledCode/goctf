@@ -17,6 +17,9 @@ type User struct {
 	// Token is the private token of the user.
 	Token string
 
+	// Pipe is the pipe used to send messages through the game webhook.
+	Pipe chan []byte
+
 	// Team is the team the user is currently within.
 	Team *Team
 }
