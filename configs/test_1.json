@@ -2,53 +2,99 @@
    "config_name":"example",
    "max_teams":10,
    "max_team_size":4,
-   "force_unique_teams":true,
+   "force_unique_teams":false,
    "game_length":120,
    "questions":[
       {
+         "name":"Question One",
+         "category":"Starter",
+         "id":"question_one",
          "question":"This is question #1",
          "answer":"answer",
-         "hint":"hint",
+         "hints":{
+            "0":{
+               "content":"This is a hint",
+               "cost":10
+            },
+	    "1":{
+	       "content":"This is a different hint",
+	       "cost":15
+	    }
+         },
          "point_gain":10,
-         "hint_cost":5,
          "wrong_loss":1,
-         "case_sensitive":false
+         "case_sensitive":false,
+         "required_solved":null
       },
       {
-         "question":"This is question #2",
+         "name":"Question Two",
+         "category":"Starter",
+         "id":"",
+         "question":"This is question #2. I require that question #1 be solved.",
          "answer":"answer",
-         "hint":"hint",
+         "hints":{
+            "0":{
+               "content":"This is a hint",
+               "cost":10
+            }
+         },
          "point_gain":10,
-         "hint_cost":5,
          "wrong_loss":1,
-         "case_sensitive":false
+         "case_sensitive":false,
+         "required_solved":["question_one"]
       },
       {
-         "question":"This is question #3",
+         "name":"No Hints!",
+         "category":"Misc",
+         "id":"",
+         "question":"This is another question. I have no hints",
          "answer":"answer",
-         "hint":"hint",
-         "point_gain":10,
-         "hint_cost":5,
+         "hints":{},
+         "point_gain":15,
          "wrong_loss":1,
-         "case_sensitive":false
+         "case_sensitive":true,
+         "required_solved":null
       },
       {
+         "name":"Where's the answer?",
+         "category":"Misc",
+         "id":"",
          "question":"This is question #4",
          "answer":"answer",
-         "hint":"hint",
-         "point_gain":10,
-         "hint_cost":5,
-         "wrong_loss":1,
-         "case_sensitive":false
+         "hints":{
+            "0":{
+               "content":"This is a hint",
+               "cost":10
+            }
+         },
+         "point_gain":30,
+         "wrong_loss":5,
+         "case_sensitive":true,
+         "required_solved":null
       },
       {
+         "name":"Two Bros",
+         "category":"Misc",
+         "id":"",
          "question":"This is question #5",
-         "answer":"answer",
-         "hint":"hint",
-         "point_gain":10,
-         "hint_cost":5,
+         "answer":"chillin in a hot tub",
+         "hints":{},
+         "point_gain":100,
+         "wrong_loss":0,
+         "case_sensitive":false,
+         "required_solved":["sam"]
+      },
+      {
+         "name":"Meme",
+         "category":"Misc",
+         "id":"sam",
+         "question":"What's 9+10?",
+         "answer":"21",
+         "hints":null,
+         "point_gain":15,
          "wrong_loss":1,
-         "case_sensitive":false
+         "case_sensitive":false,
+         "required_solved":null
       }
    ]
 }
