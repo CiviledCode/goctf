@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/civiledcode/goctf/ctf"
@@ -148,7 +149,6 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 				joinTemplate.Execute(w, data)
 				return
 			}
-
 			// Create the user using the sanitized aliase.
 			user := room.CreateUser(sanitized)
 
@@ -211,14 +211,18 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 				defer c.Close()
 
 				user.Pipe = make(chan []byte)
-				readChan := make(chan bool)
 
+				// Listen for a message on the websocket. If one is received, close the connection.
 				go func() {
 					for {
 						c.ReadMessage()
-						readChan <- true
+						close(user.Pipe)
+						user.Pipe = nil
+						return
 					}
 				}()
+
+				// Send the users team questions.
 				go func() {
 					time.Sleep(100)
 					allIds := make([]string, len(room.Questions))
@@ -229,20 +233,20 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 						i++
 					}
 					fmt.Println(allIds)
+					fmt.Println("Num of Routines:", runtime.NumGoroutine)
 					user.Team.UpdateUser(user.ID, allIds...)
 				}()
+
 				for {
-					select {
-					case msg := <-user.Pipe:
-						err = c.WriteMessage(1, msg)
-						if err != nil {
-							log.Printf("WebSocket Write Error: %v\n", err)
-							return
-						}
-					case <-readChan:
+					msg, open := <-user.Pipe
+
+					if !open {
+						c.Close()
 						user.Pipe = nil
 						return
 					}
+
+					c.WriteMessage(1, msg)
 				}
 			}
 		}

@@ -1,6 +1,7 @@
 package ctf
 
 import (
+	"errors"
 	"log"
 	"strings"
 	"time"
@@ -10,6 +11,14 @@ import (
 
 // Rooms maps room codes to their respective room structs. This allows more than one game to be going on at once.
 var Rooms map[string]*Room
+
+var ErrQuestionNotFound error = errors.New("Question not found with that id.")
+
+var ErrQuestionAlreadyAnswered error = errors.New("Your team has already answered this question.")
+
+var ErrQuestionRequiredUnsolved error = errors.New("This question requires other questions to be answered before you can solve it.")
+
+var ErrGameNotStarted error = errors.New("The game hasn't started yet.")
 
 // Room represents a CTF game or instance.
 // This instance is not thread safe
@@ -193,7 +202,7 @@ func (r *Room) CreateTeam(name string) (*Team, error) {
 		UserScores:         make(map[string]int64),
 		Room:               r,
 		CompletedQuestions: make(map[string]config.AnsweredQuestion),
-		OwnedHints: make(map[string][]int),
+		OwnedHints:         make(map[string][]int),
 		modified:           true,
 	}
 
@@ -247,7 +256,7 @@ func (r *Room) DeleteTeam(id string) {
 
 // TeamByCode retrieves a team based on its joincode.
 func (r *Room) TeamByCode(teamCode string) *Team {
-	for _, team := range r.Teams { 
+	for _, team := range r.Teams {
 		if team.JoinCode == teamCode {
 			return team
 		}
@@ -257,7 +266,7 @@ func (r *Room) TeamByCode(teamCode string) *Team {
 }
 
 // BuyHint attempts to buy a hint using a userid and a questionid.
-func (r *Room) BuyHint(userid, questionid string, hintid int) (bool, error) { 
+func (r *Room) BuyHint(userid, questionid string, hintid int) (bool, error) {
 	if user, ok := r.Users[userid]; ok {
 		if user.Team != nil {
 			err := user.Team.BuyHint(questionid, hintid)

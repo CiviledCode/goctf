@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/civiledcode/goctf/ctf/config"
 )
@@ -16,17 +17,9 @@ var ErrTeamNotFound error = errors.New("Team not found.")
 
 var ErrTeamNameUsed error = errors.New("Team name already in use.")
 
-var ErrGameNotStarted error = errors.New("The game hasn't started yet.")
-
 var ErrCannotAfford error = errors.New("Your team has insufficient points to make this purchase.")
 
 var ErrHintAlreadyOwned error = errors.New("Your team already owns this hint.")
-
-var ErrQuestionNotFound error = errors.New("Question not found with that id.")
-
-var ErrQuestionAlreadyAnswered error = errors.New("Your team has already answered this question.")
-
-var ErrQuestionRequiredUnsolved error = errors.New("This question requires other questions to be answered before you can solve it.")
 
 // Team represents a group of users that are scored and displayed amongst the leaderboard.
 // Correct answer points are awarded to teams, but individual contributions are mapped too.
@@ -43,10 +36,10 @@ type Team struct {
 	// Room is a reference to the game the team belongs to.
 	Room *Room
 
-	// score represents the teams accumulative score.
+	// score is the teams accumulative score.
 	score int64
 
-	// CompletedQuestions maps the questions UUID to the UUID of the user who completed it.
+	// CompletedQuestions maps question IDs to the answered question data.
 	CompletedQuestions map[string]config.AnsweredQuestion
 
 	// OwnedHints maps question ids to an array of all hint ids owned for that question.
@@ -121,40 +114,61 @@ func (t *Team) Complete(userid, questionid string) error {
 
 }
 
-func (t *Team) UpdateTeam(questionid string) {
+// UpdateTeam receives a questionid and attempts to update the team using its data.
+// If any error persists when retrieving the question, it will be returned.
+func (t *Team) UpdateTeam(questionid string) error {
 	data, err := t.QuestionData(questionid)
 	if err != nil {
-		log.Printf("Error Updating Question Data: %v\n", err)
-		return
+		return err
 	}
 
 	content, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Error Encoding Question Data: %v\n", err)
+		return err
 	}
 
 	for user, _ := range t.UserScores {
 		user := t.Room.Users[user]
+		// This user doesn't have a valid connection formed with the webhook yet.
 		if user.Pipe == nil {
 			continue
 		}
 
-		user.Pipe <- content	
+		// Attempt to push the content received through the pipe.
+		// Revoke the users pipe and continue if the time exceeds a threshold.
+		select {
+		case user.Pipe <- content:
+			continue
+		case <-time.After(2 * time.Second):
+			close(user.Pipe)
+			user.Pipe = nil
+			continue
+
+		}
 	}
+
+	return nil
 }
 
-func (t *Team) UpdateUser(userid string, questionids ...string) {
+// UpdateUser receives a user id and a list of question ids and sends the question data through the users pipe.
+// If the user isn't found or if they aren't in the team, ErrUserNotFound is returned.
+// If the users pipe is closed, ErrPipeClosed is returned.
+// If the pipe threshold is exceeded, the users pipe will be closed and ErrPipeThresholdExceed is returned.
+func (t *Team) UpdateUser(userid string, questionids ...string) error {
+	// Depict if the user is a part of the team.
 	if _, ok := t.UserScores[userid]; !ok {
-		return
+		return ErrUserNotFound
 	}
 
+	// Get the user object.
 	user := t.Room.Users[userid]
 	if user == nil {
-		return
+		return ErrUserNotFound
 	}
 
+	// Check if the pipe is open.
 	if user.Pipe == nil {
-		return
+		return ErrPipeClosed
 	}
 
 	for _, questionid := range questionids {
@@ -169,9 +183,18 @@ func (t *Team) UpdateUser(userid string, questionids ...string) {
 			continue
 		}
 
-		
-		user.Pipe <- content
+		select {
+		case user.Pipe <- content:
+			continue
+		case <-time.After(time.Second * 5):
+			close(user.Pipe)
+			user.Pipe = nil
+			return ErrPipeThresholdExceed
+		}
+
 	}
+
+	return nil
 }
 
 // BuyHint attempts to buy a hint using the teams points.
@@ -217,7 +240,10 @@ func (t *Team) OwnsHint(questionid string, hintid int) (bool, config.Hint) {
 	return false, config.Hint{}
 }
 
-// QuestionData receives a questionid and attempts to convert it into data
+// QuestionData receives a questionid and converts it into a format that can be marshaled.
+// This will contain hints bought by the team and solve information if this team has solved it.
+// If the question has unsolved required questions, ErrQuestionRequiredUnsolved is returned.
+// If the question can't be found, ErrQuestionNotFound is returned.
 func (t *Team) QuestionData(questionid string) (map[string]interface{}, error) {
 	if question, ok := t.Room.Questions[questionid]; ok {
 		if len(question.RequiredSolved) > 0 {

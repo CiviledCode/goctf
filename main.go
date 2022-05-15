@@ -5,12 +5,18 @@ import (
 	"log"
 	"os"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/civiledcode/goctf/ctf"
 	"github.com/civiledcode/goctf/ctf/config"
 	"github.com/civiledcode/goctf/server"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	// Load the config
 	configData, err := os.ReadFile("./configs/test_1.json")
 	if err != nil {
@@ -27,8 +33,9 @@ func main() {
 	// Create the room
 	room := ctf.NewRoom(conf)
 
+	room.Start()
 	log.Printf("New room created with code %v\n", room.Code)
-	server.Start("127.0.0.1", 8000)
+	server.Start("localhost", 8000)
 
 	for {
 
