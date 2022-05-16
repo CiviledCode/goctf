@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/civiledcode/goctf/ctf"
@@ -89,28 +88,54 @@ type joinData struct {
 	ErrorMessage string
 }
 
-// Join allows users to create users within a room given a room id and aliase.
-//
-// Methods:
-// 	- GET: Serves the Join page template.
-//
-//	- POST: Attempts to join the room using the room code  with the name provided. This will create the room_id and token cookies on the.
-//	  Params: room_code, aliase
+// VerifyCredentials retrieves values from the request and validates them.
+// This first retrieves the token and room code from the cookies. If there's a valid token or room code within the headers, it overrides this.
+// If no room is found, ErrRoomNotFound is returned. Otherwise ErrUserNotFound is returned.
+func VerifyCredentials(r *http.Request) (*ctf.Room, *ctf.User, error) {
+	var room_code, token string
+
+	token_cookie, err := r.Cookie("token")
+	if err != nil {
+		if token_cookie.Value != "" {
+			token = token_cookie.Value
+		}
+	}
+
+	room_cookie, err := r.Cookie("room_code")
+	if err != nil {
+		if room_cookie.Value != "" {
+			room_code = room_cookie.Value
+		}
+	}
+
+	header_room_code := r.Header.Get("room_code")
+	header_token := r.Header.Get("token")
+	if header_room_code != "" {
+		room_code = header_room_code
+	}
+
+	if header_token != "" {
+		token = header_token
+	}
+	room := ctf.Rooms[room_code]
+	if room == nil {
+		return nil, nil, ctf.ErrRoomNotFound
+	}
+
+	user := room.UserByPrivate(token)
+	if user == nil {
+		return nil, nil, ctf.ErrUserNotFound
+	}
+
+	return room, user, nil
+}
+
 func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	var data joinData
 
-	// Check if the user already has the proper room code and token.
-	cookie, err := r.Cookie("room_code")
-	if err == nil {
-		if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
-			cookie, err = r.Cookie("token")
-			if err == nil {
-				if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil {
-					// Redirect to the main play handler as the user is already authenticated properly in a room.
-					http.Redirect(w, r, "/play", 303)
-				}
-			}
-		}
+	_, _, err := VerifyCredentials(r)
+	if err != nil {
+		http.Redirect(w, r, "/home", 303)
 	}
 
 	// The client is attempting to join some sort of room.
@@ -152,8 +177,13 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 			// Create the user using the sanitized aliase.
 			user := room.CreateUser(sanitized)
 
-			// Store the token and room_code as cookies.
-			cookie = &http.Cookie{
+			// Send the token and room code as headers.
+			w.Header().Add("token", user.Token)
+
+			w.Header().Add("room_code", roomcode[0])
+
+			// Set the token and room code cookies for later login.
+			cookie := &http.Cookie{
 				Name:  "token",
 				Value: user.Token,
 			}
@@ -188,97 +218,83 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 
 func GameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		if token, ok := r.URL.Query()["token"]; ok {
-			if room_code, ok := r.URL.Query()["room"]; ok {
-				room := ctf.Rooms[room_code[0]]
-				user := room.UserByPrivate(token[0])
-				if room == nil || user == nil {
-					w.WriteHeader(401)
-					return
-				}
 
-				if !room.Started() {
-					w.WriteHeader(403)
-					return
-				}
+		room, user, err := VerifyCredentials(r)
+		if err != nil {
+			w.WriteHeader(401)
+			return
+		}
 
-				c, err := upgrader.Upgrade(w, r, nil)
-				if err != nil {
-					log.Printf("WebSocket Upgrade Error: %v\n", err)
-					return
-				}
+		if !room.Started() {
+			w.WriteHeader(403)
+			return
+		}
 
-				defer c.Close()
+		// Upgrade the connection.
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("WebSocket Upgrade Error: %v\n", err)
+			return
+		}
 
-				user.Pipe = make(chan []byte)
+		defer c.Close()
 
-				// Listen for a message on the websocket. If one is received, close the connection.
-				go func() {
-					for {
-						c.ReadMessage()
-						close(user.Pipe)
-						user.Pipe = nil
-						return
-					}
-				}()
+		user.Pipe = make(chan []byte)
 
-				// Send the users team questions.
-				go func() {
-					time.Sleep(100)
-					allIds := make([]string, len(room.Questions))
-					i := 0
-
-					for questionid, _ := range room.Questions {
-						allIds[i] = questionid
-						i++
-					}
-					fmt.Println(allIds)
-					fmt.Println("Num of Routines:", runtime.NumGoroutine)
-					user.Team.UpdateUser(user.ID, allIds...)
-				}()
-
-				for {
-					msg, open := <-user.Pipe
-
-					if !open {
-						c.Close()
-						user.Pipe = nil
-						return
-					}
-
-					c.WriteMessage(1, msg)
-				}
+		// Listen for a message on the websocket. If one is received, close the connection.
+		go func() {
+			for {
+				c.ReadMessage()
+				close(user.Pipe)
+				user.Pipe = nil
+				return
 			}
+		}()
+
+		// Send the user all the questions the team can view.
+		go func() {
+			// TODO: This seems hacky and prone to race conditions. Fix it somehow
+			time.Sleep(100)
+			allIds := make([]string, len(room.Questions))
+			i := 0
+
+			for questionid, _ := range room.Questions {
+				allIds[i] = questionid
+				i++
+			}
+
+			user.Team.UpdateUser(user.ID, allIds...)
+		}()
+
+		// Listen for a new message from the pipe and relay it through the websocket connection.
+		// If it's closed, close the connection, make the pipe nil, and return.
+		for {
+			msg, open := <-user.Pipe
+
+			if !open {
+				c.Close()
+				user.Pipe = nil
+				return
+			}
+
+			c.WriteMessage(1, msg)
 		}
 	}
 }
 
-// Team allows players to select between creating and joining a team in one place.
-//
-// Methods:
-//	- GET: Serves the team template and shows the forms to join or create a team.
 func TeamHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("room_code")
-	if err == nil {
-		if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
-			cookie, err = r.Cookie("token")
-			if err == nil {
-				if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil {
-					if user.Team != nil {
-						http.Redirect(w, r, "/play", 303)
-						return
-					}
-					// Serve the page because the user is authenticated.
-					teamTemplate.Execute(w, nil)
-					return
-				}
-			}
-		}
+	_, user, err := VerifyCredentials(r)
+	if err != nil {
+		http.Redirect(w, r, "/join", 303)
+		return
 	}
 
-	// The user isn't properly authenticated, so we need to redirect them to the join page.
-	http.Redirect(w, r, "/join", 303)
+	if user.Team != nil {
+		http.Redirect(w, r, "/home", 303)
+		return
+	}
 
+	teamTemplate.Execute(w, nil)
 }
 
 type playData struct {
@@ -290,133 +306,107 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 	var room *ctf.Room
 	var user *ctf.User
 
-	cookie, err := r.Cookie("room_code")
-	if err == nil {
-		if room = ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
-			cookie, err = r.Cookie("token")
-			if err == nil {
-				if user = room.UserByPrivate(cookie.Value); cookie == nil || user == nil {
-					http.Redirect(w, r, "/join", 303)
-					return
-				}
-
-				if user.Team == nil {
-					http.Redirect(w, r, "/team", 303)
-					return
-				}
-
-				data := playData{GameURL: fmt.Sprintf("ws://%v/game?token=%v&room=%v", server.Addr, user.Token, room.Code)}
-				playTemplate.Execute(w, data)
-			} else {
-				http.Redirect(w, r, "/join", 303)
-				return
-			}
-		} else {
-			http.Redirect(w, r, "/join", 303)
-			return
-		}
-	} else {
+	room, user, err := VerifyCredentials(r)
+	if err != nil {
 		http.Redirect(w, r, "/join", 303)
 		return
 	}
+
+	if user.Team == nil {
+		http.Redirect(w, r, "/team", 303)
+		return
+	}
+
+	data := playData{GameURL: fmt.Sprintf("ws://%v/game?token=%v&room=%v", server.Addr, user.Token, room.Code)}
+	playTemplate.Execute(w, data)
 }
 
 func JoinTeamHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		cookie, err := r.Cookie("room_code")
-		if err == nil {
-			if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
-				cookie, err = r.Cookie("token")
-				if err == nil {
-					if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil {
-						if user.Team == nil {
-							// The user isn't already inside of a team so they can properly join one.
-							err = r.ParseForm()
-							if err != nil {
-								log.Printf("JoinTeam Handler Error: %v\n", err)
-							}
-
-							teamcode := r.Form["team_code"]
-							if len(teamcode) == 0 {
-								http.Redirect(w, r, "/team", 303)
-								return
-							}
-
-							team := room.TeamByCode(teamcode[0])
-
-							if team == nil {
-								http.Redirect(w, r, "/team", 303)
-								return
-							}
-
-							err = user.JoinTeam(team)
-							if err != nil {
-								http.Redirect(w, r, "/team", 303)
-								return
-							}
-
-							http.Redirect(w, r, "/play", 303)
-							return
-						}
-					}
-				}
-			}
+		room, user, err := VerifyCredentials(r)
+		if err != nil {
+			http.Redirect(w, r, "/join", 303)
+			return
 		}
+
+		if user.Team != nil {
+			http.Redirect(w, r, "/home", 303)
+			return
+		}
+
+		// The user isn't already inside of a team so they can properly join one.
+		err = r.ParseForm()
+		if err != nil {
+			log.Printf("JoinTeam Handler Error: %v\n", err)
+		}
+
+		teamcode := r.Form["team_code"]
+		if len(teamcode) == 0 {
+			http.Redirect(w, r, "/team", 303)
+			return
+		}
+
+		team := room.TeamByCode(teamcode[0])
+
+		if team == nil {
+			http.Redirect(w, r, "/team", 303)
+			return
+		}
+
+		err = user.JoinTeam(team)
+		if err != nil {
+			http.Redirect(w, r, "/team", 303)
+			return
+		}
+
+		http.Redirect(w, r, "/play", 303)
 	}
 }
 
-// CreateTeam creates a new team using the name received and adds the user to this team.
-// If the team name isn't unique and config.ForceUniqueTeams is true, this will redirect back to teams.
-//
-// Methods:
-// 	- POST: Receives the team name attempts to create a team with it, ultimately adding the user to it.
-//	  Params: team_name
 func CreateTeamHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		cookie, err := r.Cookie("room_code")
-		if err == nil {
-			if room := ctf.Rooms[cookie.Value]; cookie != nil && room != nil {
-				cookie, err = r.Cookie("token")
-				if err == nil {
-					if user := room.UserByPrivate(cookie.Value); cookie != nil && user != nil {
-						if user.Team == nil {
-							err = r.ParseForm()
-							if err != nil {
-								log.Printf("CreateTeam Handler Error: %v\n", err)
-							}
-
-							teamName := r.Form["team_name"]
-							if len(teamName) == 0 {
-								http.Redirect(w, r, "/team", 303)
-								return
-							}
-
-							sanitized := sanitize(teamName[0])
-							if sanitized != "" {
-								team, err := room.CreateTeam(sanitized)
-								if err != nil {
-									http.Redirect(w, r, "/team", 303)
-									return
-								}
-
-								err = user.JoinTeam(team)
-								if err != nil {
-									http.Redirect(w, r, "/team", 303)
-									return
-								}
-
-								log.Printf("Team %v Created by %v", *team, user.ID)
-								http.Redirect(w, r, "/play", 303)
-								return
-							}
-						}
-					}
-				}
-			}
+		room, user, err := VerifyCredentials(r)
+		if err != nil {
+			http.Redirect(w, r, "/join", 303)
+			return
 		}
+
+		if user.Team != nil {
+			http.Redirect(w, r, "/home", 303)
+			return
+		}
+
+		err = r.ParseForm()
+		if err != nil {
+			log.Printf("CreateTeam Handler Error: %v\n", err)
+		}
+
+		teamName := r.Form["team_name"]
+		if len(teamName) == 0 {
+			http.Redirect(w, r, "/team", 303)
+			return
+		}
+
+		sanitized := sanitize(teamName[0])
+		if sanitized != "" {
+			team, err := room.CreateTeam(sanitized)
+			if err != nil {
+				log.Printf("Error creating team %v", err)
+				http.Redirect(w, r, "/team", 303)
+				return
+			}
+
+			err = user.JoinTeam(team)
+			if err != nil {
+				http.Redirect(w, r, "/team", 303)
+				return
+			}
+
+			log.Printf("Team %v with code %v Created by %v", team.Name, team.JoinCode, user.ID)
+			http.Redirect(w, r, "/play", 303)
+		}
+
 	}
-	// The user isn't properly authenticated, so we need to redirect them to the join page.
-	http.Redirect(w, r, "/join", 303)
 }
 
 func sanitize(input string) string {

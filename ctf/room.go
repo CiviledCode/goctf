@@ -12,6 +12,8 @@ import (
 // Rooms maps room codes to their respective room structs. This allows more than one game to be going on at once.
 var Rooms map[string]*Room
 
+var ErrRoomNotFound error = errors.New("Room not found with that code.")
+
 var ErrQuestionNotFound error = errors.New("Question not found with that id.")
 
 var ErrQuestionAlreadyAnswered error = errors.New("Your team has already answered this question.")
