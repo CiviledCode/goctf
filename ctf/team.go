@@ -21,6 +21,8 @@ var ErrCannotAfford error = errors.New("Your team has insufficient points to mak
 
 var ErrHintAlreadyOwned error = errors.New("Your team already owns this hint.")
 
+var ErrHintNotFound error = errors.New("Hint not found.")
+
 // Team represents a group of users that are scored and displayed amongst the leaderboard.
 // Correct answer points are awarded to teams, but individual contributions are mapped too.
 type Team struct {
@@ -105,8 +107,16 @@ func (t *Team) Complete(userid, questionid string) error {
 		t.CompletedQuestions[questionid] = config.AnsweredQuestion{Solver: userid, SolveTime: t.Room.CurrentTime()}
 		t.UserScores[userid] += question.Points
 		t.score += question.Points
-		t.modified = true
 		t.UpdateTeam(questionid)
+
+		for checkid, checkQuestion := range t.Room.Questions {
+			for _, requiredid := range checkQuestion.RequiredSolved {
+				if requiredid == questionid {
+					t.UpdateTeam(checkid)
+				}
+			}
+		}
+
 		return nil
 	}
 
@@ -207,20 +217,27 @@ func (t *Team) BuyHint(questionid string, hintid int) error {
 		return ErrHintAlreadyOwned
 	}
 
+	_, err := t.QuestionData(questionid)
+
+	if err != nil {
+		return err
+	}
+
 	if question, ok := t.Room.Questions[questionid]; ok {
 		if hint, ok := question.Hints[hintid]; ok {
 			if t.score >= hint.Cost {
 				t.OwnedHints[questionid] = append(t.OwnedHints[questionid], hintid)
 				t.deductions += hint.Cost
-				t.modified = true
 				t.UpdateTeam(questionid)
+				return nil
 			} else {
 				return ErrCannotAfford
 			}
 		}
+		return ErrHintNotFound
 	}
 
-	return nil
+	return ErrQuestionNotFound
 }
 
 // OwnsHint depicts if a team owns a hint given a questionid and an id for the hint.

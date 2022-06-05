@@ -1,11 +1,13 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/civiledcode/goctf/ctf"
@@ -28,6 +30,7 @@ func Start(ip string, port int) {
 
 	mux.HandleFunc("/scores", ScoresHandler)
 	mux.HandleFunc("/submit", SubmitHandler)
+	mux.HandleFunc("/buyhint", BuyHintHandler)
 	mux.HandleFunc("/join", JoinHandler)
 	mux.HandleFunc("/team", TeamHandler)
 	mux.HandleFunc("/play", PlayHandler)
@@ -53,6 +56,8 @@ func init() {
 		panic(err)
 	}
 
+	// TODO: Remove after testing.
+	upgrader.CheckOrigin = func(_ *http.Request) bool { return true }
 	joinTemplate = template.Must(template.ParseFiles(wd + "/style/join.html"))
 	teamTemplate = template.Must(template.ParseFiles(wd + "/style/team.html"))
 	playTemplate = template.Must(template.ParseFiles(wd + "/style/play.html"))
@@ -75,9 +80,79 @@ func ScoresHandler(w http.ResponseWriter, r *http.Request) {
 	// This should only be called by the fetch API
 }
 
+type submitData struct {
+	QuestionID string `json:"question_id"`
+
+	Answer string `json:"answer"`
+}
+
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: Accept all POST requests and attempt to solve a question as a user.
-	// This should contain the ID of the question and the answer being submitted.
+	if r.Method == "POST" {
+
+		room, user, err := VerifyCredentials(r)
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(404)
+			return
+		}
+
+		var data submitData
+		json.NewDecoder(r.Body).Decode(&data)
+		solved, err := room.AnswerQuestion(user, data.QuestionID, data.Answer)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(404)
+			return
+		}
+
+		if solved {
+			w.WriteHeader(200)
+			return
+		} else {
+			w.WriteHeader(400)
+			return
+		}
+	}
+	w.WriteHeader(404)
+}
+
+type buyHintData struct {
+	QuestionID string `json:"question_id"`
+
+	HintID string `json:"hint_id"`
+
+	Error string `json:"error_message"`
+}
+
+func BuyHintHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		room, user, err := VerifyCredentials(r)
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(404)
+			return
+		}
+
+		var data buyHintData
+		json.NewDecoder(r.Body).Decode(&data)
+		val, err := strconv.ParseInt(data.HintID, 10, 32)
+		if err != nil {
+			w.WriteHeader(404)
+		}
+		_, err = room.BuyHint(user, data.QuestionID, int(val))
+		if err != nil {
+			data.Error = err.Error()
+		}
+		content, err := json.Marshal(data)
+		if err != nil {
+			log.Printf("BuyHint Error Marshaling Error: %v\n", err)
+		}
+
+		w.Write(content)
+
+	}
 }
 
 type joinData struct {
@@ -94,19 +169,23 @@ type joinData struct {
 func VerifyCredentials(r *http.Request) (*ctf.Room, *ctf.User, error) {
 	var room_code, token string
 
+	// Get from cookies
+
 	token_cookie, err := r.Cookie("token")
-	if err != nil {
+	if err == nil {
 		if token_cookie.Value != "" {
 			token = token_cookie.Value
 		}
 	}
 
 	room_cookie, err := r.Cookie("room_code")
-	if err != nil {
+	if err == nil {
 		if room_cookie.Value != "" {
 			room_code = room_cookie.Value
 		}
 	}
+
+	// Get from headers
 
 	header_room_code := r.Header.Get("room_code")
 	header_token := r.Header.Get("token")
@@ -117,6 +196,21 @@ func VerifyCredentials(r *http.Request) (*ctf.Room, *ctf.User, error) {
 	if header_token != "" {
 		token = header_token
 	}
+
+	// Get from URL params
+
+	tokens, ok := r.URL.Query()["token"]
+	if ok && len(tokens[0]) > 0 {
+		token = tokens[0]
+	}
+
+	tokens, ok = r.URL.Query()["room_code"]
+	if ok && len(tokens[0]) > 0 {
+		room_code = tokens[0]
+	}
+
+	// Check credentials
+
 	room := ctf.Rooms[room_code]
 	if room == nil {
 		return nil, nil, ctf.ErrRoomNotFound
@@ -134,7 +228,7 @@ func JoinHandler(w http.ResponseWriter, r *http.Request) {
 	var data joinData
 
 	_, _, err := VerifyCredentials(r)
-	if err != nil {
+	if err == nil {
 		http.Redirect(w, r, "/home", 303)
 	}
 
@@ -245,7 +339,6 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			for {
 				c.ReadMessage()
-				close(user.Pipe)
 				user.Pipe = nil
 				return
 			}
@@ -299,6 +392,8 @@ func TeamHandler(w http.ResponseWriter, r *http.Request) {
 
 type playData struct {
 	GameURL string
+
+	FlagPlaceholder string
 }
 
 func PlayHandler(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +412,10 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := playData{GameURL: fmt.Sprintf("ws://%v/game?token=%v&room=%v", server.Addr, user.Token, room.Code)}
+	data := playData{
+		GameURL:         fmt.Sprintf("ws://%v/game?token=%v&room=%v", server.Addr, user.Token, room.Code),
+		FlagPlaceholder: room.Config.FlagPlaceholder,
+	}
 	playTemplate.Execute(w, data)
 }
 

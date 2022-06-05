@@ -18,4 +18,7 @@ type Config struct {
 
 	// Questions is all the questions being asked.
 	Questions []Question `json:"questions"`
+
+	// FlagPlaceholder is a piece of text that shows an example flag.
+	FlagPlaceholder string `json:"flag_placeholder"`
 }

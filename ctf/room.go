@@ -268,34 +268,27 @@ func (r *Room) TeamByCode(teamCode string) *Team {
 }
 
 // BuyHint attempts to buy a hint using a userid and a questionid.
-func (r *Room) BuyHint(userid, questionid string, hintid int) (bool, error) {
-	if user, ok := r.Users[userid]; ok {
-		if user.Team != nil {
-			err := user.Team.BuyHint(questionid, hintid)
-			return err == nil, err
-		} else {
-			return false, ErrTeamNotFound
-		}
+func (r *Room) BuyHint(user *User, questionid string, hintid int) (bool, error) {
+	if user.Team != nil {
+		err := user.Team.BuyHint(questionid, hintid)
+		return err == nil, err
+	} else {
+		return false, ErrTeamNotFound
 	}
 
-	return false, ErrUserNotFound
 }
 
 // AnswerQuestion attempts to answer a question on behalf of the user provided.
 // The proper point allocations, deductions, answer, and security checks are done on this.
 // This returns a bool representing if you have the question answered now and an error.
 // This executes the Answer, Complete, and Wrong callbacks respectively.
-// If the user isn't found, ErrUserNotFound is returned.
+// If the game hasn't started, ErrGameNotStarted is returned.
+// If the user doesn't have a team, ErrTeamNotFound is returned.
 // If the question isn't found, ErrQuestionNotFound is returned.
 // If the question was already answered by the users team, true is returned alongside ErrQuestionAlreadyAnswered.
-func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
+func (r *Room) AnswerQuestion(user *User, questionid, answer string) (bool, error) {
 	if !r.Started() {
 		return false, ErrGameNotStarted
-	}
-	user := r.Users[userid]
-
-	if user == nil {
-		return false, ErrUserNotFound
 	}
 
 	if user.Team == nil {
@@ -322,7 +315,7 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 
 	if r.AnswerCallback != nil {
 		if r.AnswerCallback(user, question, answer) {
-			user.Team.Complete(userid, questionid)
+			user.Team.Complete(user.ID, questionid)
 			if r.CompleteCallback != nil {
 				r.CompleteCallback(user, question, answer)
 			}
@@ -331,7 +324,7 @@ func (r *Room) AnswerQuestion(userid, questionid, answer string) (bool, error) {
 	}
 
 	if question.IsRight(answer) {
-		user.Team.Complete(userid, questionid)
+		user.Team.Complete(user.ID, questionid)
 		if r.CompleteCallback != nil {
 			r.CompleteCallback(user, question, answer)
 		}

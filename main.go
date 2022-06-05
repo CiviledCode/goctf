@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -30,11 +31,25 @@ func main() {
 		log.Fatalf("Error parsing config file: %v\n", err)
 	}
 
+	//
 	// Create the room
 	room := ctf.NewRoom(conf)
 
+	user := room.CreateUser("Test")
+	team, err := room.CreateTeam("Test")
+	if err != nil {
+		log.Fatalf("Error creating new team: %v\n", err)
+	}
+	user.JoinTeam(team)
+
+	err = team.Complete(user.ID, "question_one")
+	if err != nil {
+		log.Fatalf("Error answering question: %v\n", err)
+	}
+
+	fmt.Printf("\n\nRoom Code: %v\nUser Token: %v\nTeam Code: %v\n\n", room.Code, user.Token, team.JoinCode)
+
 	room.Start()
-	log.Printf("New room created with code %v\n", room.Code)
 	server.Start("localhost", 8000)
 
 	for {

@@ -3,14 +3,979 @@
 
 <head>
   <meta charset="utf-8">
-  <title>Play</title>
+  <title></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.js" charset="utf-8"></script>
+
+  <style media="screen">
+  :root {
+    --primary-color: rgb(50, 194, 113);
+
+    --navbar-color: #1f2124;
+    --sidebar-color: #242528;
+    --background-color: #1a1b1f;
+    --question-card-color: #2d2e33;
+    --question-content-color: #242528;
+    --dialogue-color: #2d2e33;
+    --notification-color: #2d2e33;
+    --answer-field-color: #2d2e33;
+    --highlight-color: var(--primary-color);
+    --content-color: #dddddd;
+    --seperator-color: #999999;
+
+    --error-color: #D75A4A;
+    --warning-color: #EFCE4A;
+    --success-color: rgb(50, 194, 113);
+
+    --notification-height: 128px;
+    --close-button-size: 32px;
+    --navbar-height: 55px;
+    --question-card-width: 300px;
+    --question-content-width: 600px;
+    --answer-field-height: 48px;
+    --content-border-radius: 10px;
+    --navbar-hover-scale: 1.15;
+    --dialogue-width: 30vw;
+
+    --element-shadow: rgba(0, 0, 0, 0.2) 0px 2px 8px 0px;
+    --team-list-user-height: 32px;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    color: var(--content-color);
+    font-family: 'Heebo', sans-serif;
+  }
+
+  .navbar {
+    font-weight: 600;
+    display: flex;
+    position: fixed;
+    box-sizing: content-box;
+    height: var(--navbar-height);
+    background: var(--navbar-color);
+    width: calc(100vw - 32px);
+    padding: 0;
+    margin: 0;
+    padding-left: 32px;
+    overflow: hidden;
+    z-index: 20;
+    box-shadow: var(--element-shadow);
+    transition: height 200ms;
+  }
+
+  .navbar:hover {
+    height: calc(var(--navbar-height) * var(--navbar-hover-scale));
+  }
+
+  .navbar>* {
+    list-style: none;
+    margin-inline: 10px;
+    height: var(--navbar-height);
+    vertical-align: middle;
+    line-height: var(--navbar-height);
+    fill: var(--content-color);
+    transition: color 200ms;
+    height: 100%;
+    user-select: none;
+  }
+
+  .navbar>li:not([no_highlight]):hover {
+    color: var(--highlight-color);
+    cursor: pointer;
+  }
+
+  .right_element {
+    margin-left: auto;
+  }
+
+  #team_button {
+    margin-right: 30px;
+  }
+
+  .page_content {
+    position: fixed;
+    top: var(--navbar-height);
+    background-color: var(--background-color);
+    font-weight: 400;
+    width: calc(100vw - 16px);
+    height: calc(100vh - var(--navbar-height) - 16px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px;
+  }
+
+  .sidebar_right {
+    font-weight: 400;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    width: clamp(250px, 20%, 500px);
+    height: calc(100vh - var(--navbar-height));
+    box-sizing: border-box;
+    background: var(--sidebar-color);
+    transform: translateX(100%);
+    transition: transform 400ms;
+    padding: 8px;
+    overflow-x: visible;
+    pointer-events: none;
+    box-shadow: var(--element-shadow);
+    z-index: 15;
+  }
+
+  .sidebar_right[active="true"] {
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .sidebar_right[active="false"] {
+    transform: translateX(100%);
+  }
+
+  .chart_holder {
+    width: 70%;
+  }
+
+  #team_user_label {
+    margin-right: auto;
+    margin-left: auto;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    margin-top: 0;
+  }
+
+  .sidebar_right>div {
+    width: 95%;
+    border-radius: 5px;
+    padding: 8px;
+    background: var(--background-color);
+  }
+
+  .team_user_list {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: auto;
+    margin-top: 32px;
+  }
+
+  .team_user_list>div {
+    line-height: var(--team-list-user-height);
+    width: 90%;
+    padding-left: 8px;
+    height: var(--team-list-user-height);
+    border-style: dashed;
+    border-color: var(--question-card-color);
+    border-width: 3px;
+    border-radius: 10px;
+    margin: 4px;
+    color: #777777;
+  }
+
+  .team_user_list>div[active] {
+    color: white;
+    border-style: solid;
+    border-color: var(--question-card-color);
+    background: var(--question-card-color);
+  }
+
+  .join_code_holder {
+    margin-top: auto;
+    margin-bottom: 16px;
+    height: 64px;
+  }
+
+  .notification_holder {
+    width: clamp(300px, 30vw, 700px);
+    position: fixed;
+    height: 60vh;
+    display: flex;
+    flex-direction: column;
+    bottom: 0;
+    right: 16px;
+    padding: 16px;
+    justify-content: flex-end;
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  .notification {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: var(--notification-height);
+    background-color: var(--notification-color);
+    margin-top: 16px;
+    border-radius: var(--content-border-radius);
+    transition: transform 300ms, opacity 300ms;
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: auto;
+  }
+
+  .notification.success {
+    border: 2px solid var(--success-color);
+  }
+
+  .notification.warning {
+    border: 2px solid var(--warning-color);
+  }
+
+  .notification.error {
+    border: 2px solid var(--error-color);
+  }
+
+  .notification[active="true"] {
+    transform: none;
+    opacity: 1;
+  }
+
+  .notification[active="false"] {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  .notification_content_holder>h3 {
+    margin-top: 2px;
+    margin-bottom: 0;
+    transform: none;
+    transition: transform 200ms;
+  }
+
+  .notification_content_holder>p {
+    margin-top: 0;
+  }
+
+  .notification_content_holder>* {
+    margin-left: 6px;
+  }
+
+  .notification_icon {
+    width: 64px;
+    height: 64px;
+    padding-inline: 8px;
+    flex-shrink: 0;
+  }
+
+  .question_holder {
+    width: 100%;
+    min-width: calc(var(--question-card-width) * 2.25);
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .question_card {
+    width: var(--question-card-width);
+    aspect-ratio: 3 / 2;
+    background: var(--question-card-color);
+    border-radius: var(--content-border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin: 8px;
+    box-shadow: var(--element-shadow);
+    font-size: 26px;
+    user-select: none;
+    transition: transform 175ms;
+  }
+
+  .question_card:hover {
+    transform: scale(1.05, 1.05);
+  }
+
+  .question_card.solved {
+    background: var(--success-color);
+  }
+
+  .question_content {
+    background: var(--question-content-color);
+    position: fixed;
+    right: 50vw;
+    top: 50vh;
+    box-shadow: var(--element-shadow);
+    border-radius: var(--content-border-radius);
+    width: var(--question-content-width);
+    aspect-ratio: 3 / 4;
+    transform: translate(50%, -50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    z-index: 10;
+  }
+
+  .question_content[active="true"] {
+    display: flex;
+    animation: 200ms ease-out forwards fade_in;
+  }
+
+  .question_content[active="false"] {
+    display: flex;
+    animation: 200ms ease-out forwards fade_out;
+  }
+
+  .question_interaction_holder {
+    width: 60%;
+    margin-top: auto;
+    margin-bottom: 64px;
+  }
+
+  .question_hint_holder {
+    width: 100%;
+    height: var(--answer-field-height);
+    padding: 8px;
+    padding-left: 4px;
+  }
+
+  .question_hint_holder>button {
+    border-radius: 5px;
+    height: 100%;
+    color: var(--content-color);
+    border: none;
+    margin-right: 8px;
+    background-color: var(--answer-field-color);
+    width: calc(20% - 8px);
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .question_hint_holder>button[owned] {
+    background-color: var(--success-color);
+  }
+
+  .answer_input_holder {
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .answer_input_holder>* {
+    height: var(--answer-field-height);
+    background-color: var(--answer-field-color);
+    border: none;
+    border-radius: 5px;
+    margin-inline: 4px;
+    padding-inline: 2px;
+    color: var(--content-color);
+    font-size: 16px;
+    font-family: 'Heebo', sans-serif;
+  }
+
+  .answer_input_holder.solved>.submit_button {
+    background-color: var(--success-color);
+    pointer-events: none;
+  }
+
+  .answer_field {
+    width: auto;
+    color: white;
+    padding-inline: 4px;
+    flex-grow: 2;
+  }
+
+  .answer_field:focus {
+    border: none;
+  }
+
+  .submit_button {
+    width: 20%;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .dialogue {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--dialogue-color);
+    border-radius: 5px;
+    position: fixed;
+    right: 50%;
+    top: 50%;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+    transform: translate(50%, -50%);
+    width: var(--dialogue-width);
+    aspect-ratio: 3 / 2;
+    box-shadow: var(--element-shadow);
+  }
+
+  .dialogue[active="true"] {
+    animation: 200ms ease-out forwards fade_in;
+  }
+
+  .dialogue[active="false"] {
+    animation: 200ms ease-out forwards fade_out;
+  }
+
+  .category_holder {
+    width: 100%;
+    padding-left: 8px;
+  }
+
+  .category {
+    margin-top: 32px;
+  }
+
+  .category>h2::after {
+      height: 100%;
+      content: '';
+      width: max(calc(var(--question-card-width) * 2), 70%);
+      border-bottom: solid 2px var(--seperator-color);
+      position: absolute;
+      left: 0;
+      display: inline;
+      z-index: 0;
+  }
+
+  .category>h2 {
+    display: flex;
+    position: relative;
+  }
+
+  @keyframes fade_in {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade_out {
+    0% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  </style>
 </head>
 
 <body>
-  <h1>Play</h1>
+  <ul class="navbar">
+    <li>Home</li>
+    <li no_highlight>Play</li>
+    <li>Scoreboard</li>
+    <li>Rules</li>
+    <li class="right_element" id="points" no_highlight>Pts</li>
+    <li id="team_button">Team</li>
+  </ul>
+  <div class="sidebar_right" id="team_sidebar" close_on_click>
+      <h3>Point Breakdown</h3>
+      <aside class="chart_holder">
+        <canvas id="points_chart"></canvas>
+      </aside>
+      <div class="team_user_list">
+        <p id="team_user_label">Team Users</p>
+        <div active>Jacob (You)</div>
+        <div active>Nick</div>
+        <div active>Caleb</div>
+        <div>Empty</div>
+      </div>
+      <div class="join_code_holder">
+
+      </div>
+  </div>
+  <div class="notification_holder">
+  </div>
+
+  <div class="page_content">
+    <h1>Questions</h1>
+    <div class="category_holder">
+
+    </div>
+  </div>
   <script type="text/javascript">
-    var ws;
+    var focusedSidebar;
+    var focusedQuestionContent;
+    var focusedDialogue;
+
+    var successIcon = '<svg  x="0px" y="0px" viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;"> <circle style="fill:var(--success-color);" cx="25" cy="25" r="25"/> <polyline style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="38,15 22,33 12,25 "/><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g></svg>';
+    var warningIcon = '<svg x="0px" y="0px" viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;" ><circle style="fill:var(--warning-color);" cx="25" cy="25" r="25"/> <line style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;" x1="25" y1="10" x2="25" y2="32"/><line style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;" x1="25" y1="37" x2="25" y2="39"/><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g></svg>';
+    var errorIcon = '<svg x="0px" y="0px" viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;" ><circle style="fill:var(--error-color);" cx="25" cy="25" r="25"/><polyline style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;" points="16,34 25,25 34,16"/><polyline style="fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;" points="16,16 25,25 34,34"/><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g><g></g></svg>';
+
+    const NOTIF_SUCCESS = "success";
+    const NOTIF_WARNING = "warning";
+    const NOTIF_ERROR = "error";
+
     var url = "{{.GameURL}}";
+    var flagPlaceholder = "{{.FlagPlaceholder}}";
+    //var url = "ws://localhost:8000/game?token=vEbparLZXNxtTU1w&room_code=383972";
+
+
+    // NOTIFICATIONS
+
+
+    function addNotification(type, title, content) {
+      let notification = document.createElement("div");
+      notification.classList.add("notification");
+
+      let notificationLabel = document.createElement("h3");
+      notificationLabel.innerHTML = title;
+      let notificationContent = document.createElement("p");
+      notificationContent.innerText = content;
+
+      let notificationIconHolder = document.createElement("div");
+      notificationIconHolder.classList.add("notification_icon");
+      switch(type.toLowerCase()) {
+        case "success":
+          notificationIconHolder.innerHTML = successIcon;
+          notification.classList.add("success");
+          break;
+        case "warning":
+          notificationIconHolder.innerHTML = warningIcon;
+          notification.classList.add("warning");
+          break;
+        case "error":
+          notificationIconHolder.innerHTML = errorIcon;
+          notification.classList.add("error");
+          break;
+      }
+      notification.appendChild(notificationIconHolder);
+
+      let notificationContentHolder = document.createElement("div");
+      notificationContentHolder.classList.add("notification_content_holder");
+      notificationContentHolder.appendChild(notificationLabel);
+      notificationContentHolder.appendChild(notificationContent);
+      notification.appendChild(notificationContentHolder);
+
+      let notificationholder = document.querySelector(".notification_holder");
+      notificationholder.appendChild(notification);
+
+      notification.setAttribute("active", "true");
+
+      setTimeout(function() {
+        notification.setAttribute("active", "false");
+        notification.addEventListener("transitionend", function() {
+          notification.remove();
+        });
+      }, 5000);
+    }
+
+    const dialogueElementListener = function(event) {
+      event.stopPropagation();
+    }
+
+    function showDialogue(dialogue) {
+      if(focusedDialogue == dialogue) {
+        return;
+      }
+
+      if(focusedDialogue != null) {
+        hideDialogue();
+      }
+
+      dialogue.setAttribute('active', "true");
+      dialogue.addEventListener('click', dialogueElementListener);
+
+      focusedDialogue = dialogue;
+    }
+
+    function hideDialogue() {
+      if(focusedDialogue == null) {
+        return;
+      }
+
+      focusedDialogue.setAttribute('active', "false");
+      focusedDialogue.addEventListener('animationend', function(event) {
+        event.target.removeAttribute('active');
+      },
+      {once: true});
+
+      focusedDialogue.removeEventListener('click', dialogueElementListener);
+      focusedDialogue = null;
+    }
+
+
+
+    // SIDEBAR
+
+
+
+    function showSidebar(sidebar_id) {
+      if (focusedSidebar != null) {
+        hideSidebar(focusedSidebar.id);
+      }
+
+      let sidebar = document.getElementById(sidebar_id);
+      if (sidebar == null) {
+        console.error('No sidebar found with id', sidebar_id);
+        return;
+      }
+
+      if (sidebar.hasAttribute('close_on_click')) {
+        focusedSidebar = sidebar;
+      }
+
+      sidebar.setAttribute('active', "true");
+
+      sidebar.addEventListener('click', function(event) {
+        if (focusedSidebar == event.target) {
+          event.stopPropagation();
+          return;
+        }
+      });
+    }
+
+    function hideSidebar(sidebar_id) {
+      let sidebar = document.getElementById(sidebar_id);
+      if (sidebar == null) {
+        console.error('No sidebar found with id', sidebar_id);
+        return;
+      }
+
+      sidebar.addEventListener('transitionend', function() {
+        sidebar.removeAttribute('active');
+      }, {
+        once: true
+      });
+
+      sidebar.setAttribute('active', "false");
+
+      if (focusedSidebar == sidebar) {
+        focusedSidebar = null;
+      }
+    }
+
+    let closeButtons = document.querySelectorAll('.close_button');
+    closeButtons.forEach((button, i) => {
+      button.addEventListener('click', function(event) {
+        if(button.parentElement.getAttribute("active") == "true") {
+          hideSidebar(button.parentElement.id);
+        } else {
+          showSidebar(button.parentElement.id);
+        }
+      });
+    });
+
+
+    // CHART
+
+
+    const ctx = document.getElementById('points_chart');
+    const myChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+          labels: ['Caleb', 'Nick', 'Andrew', 'Jacob'],
+          datasets: [{
+              label: 'Points',
+              data: [60, 85, 105, 35],
+              backgroundColor: '#2d2e33',
+              hoverBackgroundColor: 'rgb(50, 194, 113)',
+              borderColor: '#242528',
+              borderWidth: 3,
+              hoverOffset: 2
+            }]
+          },
+        });
+
+        Chart.overrides['pie'].plugins.legend.display = false;
+        Chart.overrides['pie'].plugins.tooltip.displayColors = false;
+        myChart.update();
+
+
+
+    // QUESTIONS
+
+
+    const submitClickEvent = function(event) {
+      let answer = event.target.previousSibling.value;
+      let questionId = event.target.parentElement.parentElement.getAttribute("question_id");
+      let data = {
+        answer: answer,
+        question_id: questionId
+      }
+      console.log(data);
+      if(answer != "") {
+        fetch("/submit", {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        }).then(response => {
+          if(response.status == 200) {
+            addNotification("success", "Correct!", "That answer is correct!");
+          } else if(response.status == 400) {
+            addNotification("error", "Incorrect.", "Sorry, that answer isn't correct. Try again!");
+          }
+        });
+      }
+    }
+
+    function question(questionId) {
+      let questionHolder = this.querySelector(".question_holder");
+      let question = questionHolder.querySelector(`.question[question_id="${questionId}"]`);
+
+      if(question != null) {
+        return question;
+      }
+
+      question = document.createElement("div");
+      question.classList.add("question");
+      question.setAttribute("question_id", questionId);
+
+      let questionCard = document.createElement("div");
+      questionCard.classList.add("question_card");
+      questionCard.addEventListener('click', function(event) {
+        showQuestionContent(questionCard.nextSibling);
+        event.stopPropagation();
+      });
+
+      let questionContent = document.createElement("div");
+      questionContent.classList.add("question_content");
+
+      let questionContentTitle = document.createElement("h1");
+      questionContent.appendChild(questionContentTitle);
+
+      let questionContentQuestion = document.createElement("p");
+      questionContent.appendChild(questionContentQuestion);
+
+      let questionContentInteractionHolder = document.createElement("div");
+      questionContentInteractionHolder.classList.add("question_interaction_holder");
+      questionContentInteractionHolder.setAttribute("question_id", questionId);
+
+      let questionHintHolder = document.createElement("div");
+      questionHintHolder.classList.add("question_hint_holder");
+      questionContentInteractionHolder.appendChild(questionHintHolder);
+
+      let answerInputHolder = document.createElement("div");
+      answerInputHolder.classList.add("answer_input_holder");
+
+      let questionAnswerField = document.createElement("input");
+      questionAnswerField.classList.add("answer_field");
+      questionAnswerField.placeholder = flagPlaceholder;
+      questionAnswerField.addEventListener('keypress', function(event) {
+        if(event.target.value != "" && event.key == "Enter") {
+          event.stopPropagation();
+          event.target.nextSibling.click();
+        }
+      });
+
+      let questionSubmitButton = document.createElement("button");
+      questionSubmitButton.classList.add("submit_button");
+      questionSubmitButton.addEventListener('click', submitClickEvent);
+      answerInputHolder.appendChild(questionAnswerField);
+      answerInputHolder.appendChild(questionSubmitButton);
+      questionContentInteractionHolder.appendChild(answerInputHolder);
+
+
+      questionContent.appendChild(questionContentInteractionHolder);
+
+      question.appendChild(questionCard);
+      question.appendChild(questionContent);
+
+      questionHolder.appendChild(question);
+
+      return question;
+    }
+
+    const buyHint = function(event) {
+      if(event.target.hasAttribute("owned")) {
+        showDialogue(event.target.lastChild);
+        event.stopPropagation();
+        return;
+      }
+
+      let hintId = event.target.getAttribute("hint_id");
+
+      var data = {
+        question_id: event.target.parentElement.parentElement.getAttribute("question_id"),
+        hint_id: hintId
+      };
+
+      fetch("/buyhint", {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }).then(response => {
+        return response.json();
+      }).then(response => {
+        if(response.error_message == "") {
+          addNotification("success", "Hint Purchased!", "You have successfully purchased a hint. Click it to view it.");
+        } else {
+          addNotification("error", "Error", response.error_message);
+        }
+      });
+      event.stopPropagation();
+    };
+
+    function updateQuestion(questionData) {
+      console.log(questionData);
+      let questionCategory = category(questionData.category);
+      let question = questionCategory.question(questionData.id);
+
+      let questionCard = question.querySelector(".question_card");
+      questionCard.innerHTML = questionData.name;
+      if(questionData.solved) {
+        questionCard.classList.add("solved");
+      }
+
+      let questionContent = question.querySelector(".question_content");
+      questionContent.querySelector("h1").innerHTML = questionData.name;
+      questionContent.querySelector("p").innerText = questionData.question;
+
+      let questionHintHolder = questionContent.querySelector(".question_hint_holder");
+      let arr = new Map(Object.entries(questionData.hints));
+      arr.forEach((item, i) => {
+        let hint = questionHintHolder.querySelector(`[hint_id="${i}"]`);
+
+        if(hint == null) {
+          hint = document.createElement("button");
+          questionHintHolder.appendChild(hint);
+          hint.setAttribute("hint_id", i);
+          hint.innerText = `Hint ${parseInt(i) + 1}`;
+
+          let hintDialogue = document.createElement("div");
+          hintDialogue.classList.add("dialogue");
+          hintDialogue.innerText = item.content;
+
+          hint.appendChild(hintDialogue);
+        }
+
+        hint.addEventListener('click', buyHint);
+
+        if(item.owned) {
+          hint.setAttribute("owned", "");
+          hint.lastChild.innerText = item.content;
+        }
+      });
+
+      let answerInputHolder = questionContent.querySelector(".answer_input_holder");
+      if(questionData.solved) {
+        answerInputHolder.classList.add("solved");
+      }
+
+      let submitButton = questionContent.querySelector(".submit_button");
+      if(questionData.solved) {
+          submitButton.innerText = "Solved";
+          submitButton.removeEventListener('click', submitClickEvent);
+          submitButton.previousSibling.setAttribute("disabled", "");
+          submitButton.previousSibling.value = "";
+      } else {
+          submitButton.innerText = "Submit";
+      }
+    }
+
+    function hideQuestionContent(questionContent) {
+      if(questionContent == null) {
+        return;
+      }
+
+      questionContent.addEventListener('animationend', function() {
+        questionContent.removeAttribute('active');
+      }, {
+        once: true
+      });
+
+      questionContent.setAttribute("active", "false");
+
+      focusedQuestionContent = null;
+    }
+
+    function showQuestionContent(questionContent) {
+      if(questionContent == null) {
+        return;
+      }
+
+      // This window is already focused.
+      if(focusedQuestionContent == questionContent) {
+        return;
+      }
+
+      if(focusedQuestionContent != null) {
+        hideQuestionContent(focusedQuestionContent);
+      }
+
+      questionContent.setAttribute("active", "true");
+      focusedQuestionContent = questionContent;
+    }
+
+
+
+    // CATEGORIES
+
+
+
+    const categoryHolder = document.querySelector(".category_holder");
+    function category(categoryName) {
+      let existingElement = categoryHolder.querySelector(`.category[category_name="${categoryName}"]`);
+      if(existingElement != null) {
+        return existingElement;
+      }
+
+      let category = document.createElement("div");
+      category.classList.add("category");
+      category.setAttribute("category_name", categoryName);
+
+      let categoryLabel = document.createElement("h2");
+      categoryLabel.innerHTML = categoryName;
+      category.appendChild(categoryLabel);
+
+      let questionHolder = document.createElement("div");
+      questionHolder.classList.add("question_holder");
+      category.appendChild(questionHolder);
+
+      categoryHolder.appendChild(category);
+      category.question = question;
+      return category;
+    }
+
+
+
+    // MISC
+
+
+
+    let teamButton = document.getElementById("team_button");
+    teamButton.addEventListener('click', function(event) {
+      showSidebar('team_sidebar');
+      event.stopPropagation();
+    });
+
+    document.addEventListener('click', function(event) {
+      if (focusedDialogue != null) {
+        hideDialogue(focusedDialogue);
+      }
+
+      if (focusedSidebar != null) {
+        if (!focusedSidebar.contains(event.target)) {
+            hideSidebar(focusedSidebar.id);
+        }
+      }
+
+      if(focusedQuestionContent != null) {
+        if(!focusedQuestionContent.contains(event.target)) {
+            hideQuestionContent(focusedQuestionContent);
+        }
+      }
+    });
+
+
+
+    // WEBSOCKET
+
+
+
+    var ws;
+
     window.addEventListener("load", function(evt) {
       if (ws) {
         return false;
@@ -38,10 +1003,6 @@
       ws.send("close");
       ws.close();
     });
-
-    function updateQuestion(question_data) {
-      console.log(question_data);
-    }
   </script>
 </body>
 
