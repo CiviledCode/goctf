@@ -4,6 +4,7 @@
    "max_team_size":4,
    "force_unique_teams":false,
    "game_length":120,
+   "flag_placeholder":"goCTF{FLAG}",
    "questions":[
       {
          "name":"Question One",
